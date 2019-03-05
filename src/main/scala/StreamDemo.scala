@@ -2,7 +2,6 @@ package streamdemo
 
 import scala.io.StdIn
 import scala.concurrent._
-import scala.io.StdIn
 import java.util.Properties
 import java.io.File
 
@@ -54,6 +53,12 @@ import scala.language.postfixOps
 import org.apache.spark.ml.PipelineModel
 import org.apache.spark.ml.evaluation._
 
+import java.net.InetAddress
+import org.elasticsearch.common.transport.InetSocketTransportAddress
+import org.elasticsearch.client.transport.TransportClient
+import org.elasticsearch.transport.client.PreBuiltTransportClient
+import org.elasticsearch.common.settings.Settings
+
 
 object StreamDemo {
 	def apply(args: ArgsConfig) : StreamDemo = new StreamDemo(args)
@@ -88,12 +93,26 @@ class StreamDemo(args: ArgsConfig) {
 	val MODEL_MLP_DIR = DATA_DIR+"/testmlp"
 	val MODEL_KMEANS_DIR = DATA_DIR+"/testkmeans"
 
+	/** setup elasticsearch client **/
+	val ELASTIC_PORT = context.settings.elastic_port
+	val ELASTIC_NODES = context.settings.elastic_nodes.toSeq
+	val elastic_addresses = ELASTIC_NODES.map { host => new InetSocketTransportAddress(InetAddress.getByName(host), port)}
+	lazy private val settings = Settings.builder().put("cluster.name", context.settings.elastic_clustername).build()
+	val client:TransportClient = new PreBuiltTransportClient(settings)
+		.addTransportAddresses(elastic_addresses:_*)
+
+
+
 	class StreamdemoSettings(config: com.typesafe.config.Config) {
 		config.checkValid(ConfigFactory.defaultReference(), "demo")
+		import scala.collection.JavaConversions._
 		
 		val port = config.getInt("demo.port")
 		val dataDir= config.getString("demo.data_dir")
 		val appName = config.getString("demo.app_name")
+		val elastic_port = config.getInt("demo.elastic_port")
+		val elastic_nodes = config.getStringList("demo.elastic_nodes").toList
+		val elastic_clustername = config.getString("demo.elastic_clustername")
 	}
 
 	class StreamdemoContext(config: com.typesafe.config.Config) {
