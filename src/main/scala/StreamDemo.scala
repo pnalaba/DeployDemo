@@ -8,9 +8,10 @@ import java.io.File
 import scala.util.{Random,Success,Failure}
 import akka.actor.ActorSystem
 import akka.actor.Status
-import akka.pattern.{ask, pipe}
+//import akka.pattern.{ask, pipe}
 import scala.concurrent.duration._
 import akka.util.Timeout
+import akka.util.ByteString
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
@@ -19,9 +20,6 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, StatusCodes}
 import akka.stream.scaladsl.Source
-import akka.util.ByteString
-import org.apache.spark.streaming.{Seconds, StreamingContext}
-import org.apache.spark.streaming.dstream.{ConstantInputDStream, DStream}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
 import org.apache.spark.sql._
@@ -30,6 +28,7 @@ import org.apache.spark.mllib._
 import org.apache.spark.rdd.RDD
 
 import scala.collection.mutable._
+import scala.collection.JavaConversions._
 import org.apache.spark.{SparkConf, SparkContext}
 import spray.json._
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
@@ -40,24 +39,23 @@ import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql._
 import streamdemo._
-import org.ojai.DocumentStream;
-import org.ojai.store.DocumentMutation;
-import org.ojai.store.QueryCondition;
-import com.mapr.db.MapRDB
-import com.mapr.db.Table
 import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 import com.typesafe.config.{Config, ConfigFactory}
-import org.apache.log4j.{Level, Logger}
+import org.apache.log4j.Level
+import org.apache.log4j.Logger
 
 import scala.language.postfixOps
 import org.apache.spark.ml.PipelineModel
 import org.apache.spark.ml.evaluation._
 
-import java.net.InetAddress
-import org.elasticsearch.common.transport.InetSocketTransportAddress
-import org.elasticsearch.client.transport.TransportClient
-import org.elasticsearch.transport.client.PreBuiltTransportClient
-import org.elasticsearch.common.settings.Settings
+//imports for elasticsearch REST Api
+import org.elasticsearch.client.RestHighLevelClient
+import org.elasticsearch.client.RestClient
+import org.apache.http.HttpHost
+import org.elasticsearch.action.get.GetRequest
+import org.elasticsearch.action.index.{IndexRequest,IndexResponse}
+import org.elasticsearch.common.xcontent.{XContentType,XContentBuilder,XContentFactory}
+
 
 
 object StreamDemo {
@@ -83,6 +81,7 @@ class StreamDemo(args: ArgsConfig) {
 	var evalAUC : BinaryClassificationEvaluator = null
 	var clusteringEvaluator : ClusteringEvaluator = null
 	var metricGetter : ActorRef = null
+	var elasticClient : RestHighLevelClient = null
 
 
 	val context = new StreamdemoContext()
@@ -93,25 +92,16 @@ class StreamDemo(args: ArgsConfig) {
 	val MODEL_MLP_DIR = DATA_DIR+"/testmlp"
 	val MODEL_KMEANS_DIR = DATA_DIR+"/testkmeans"
 
-	/** setup elasticsearch client **/
-	val ELASTIC_PORT = context.settings.elastic_port
-	val ELASTIC_NODES = context.settings.elastic_nodes.toSeq
-	val elastic_addresses = ELASTIC_NODES.map { host => new InetSocketTransportAddress(InetAddress.getByName(host), port)}
-	lazy private val settings = Settings.builder().put("cluster.name", context.settings.elastic_clustername).build()
-	val client:TransportClient = new PreBuiltTransportClient(settings)
-		.addTransportAddresses(elastic_addresses:_*)
-
 
 
 	class StreamdemoSettings(config: com.typesafe.config.Config) {
 		config.checkValid(ConfigFactory.defaultReference(), "demo")
-		import scala.collection.JavaConversions._
 		
 		val port = config.getInt("demo.port")
 		val dataDir= config.getString("demo.data_dir")
 		val appName = config.getString("demo.app_name")
 		val elastic_port = config.getInt("demo.elastic_port")
-		val elastic_nodes = config.getStringList("demo.elastic_nodes").toList
+		//val elastic_nodes = config.getStringList("demo.elastic_nodes").toList
 		val elastic_clustername = config.getString("demo.elastic_clustername")
 	}
 
@@ -165,6 +155,8 @@ class StreamDemo(args: ArgsConfig) {
 		clusteringEvaluator = new ClusteringEvaluator()
 	}
 
+
+
 	//format for unmarshalling and marshalling
 	implicit val filePathFormat = jsonFormat4(DfLoadReq)
 
@@ -187,6 +179,19 @@ class StreamDemo(args: ArgsConfig) {
 		return df_
 	}
 
+	def send_to_elastic(index:String, doctype:String, id: String, m: Map[String, Object]) : IndexResponse =  { 
+		val builder = XContentFactory.jsonBuilder()
+		builder.startObject();
+		for ((k,v) <- m) {
+		    builder.field(k, v)
+		}
+		builder.endObject()
+		val indexRequest = new IndexRequest(index,doctype,id)
+		        .source(builder)
+		elasticClient.index(indexRequest)
+	}
+
+
 
 	def getMetrics(total_df: DataFrame) = {
 		val data = Array[DataChunk]()
@@ -205,10 +210,16 @@ class StreamDemo(args: ArgsConfig) {
 		val pred_rf = model_rf.transform(df)
 		val pred_mlp = model_mlp.transform(df)
 		val pred_kmeans = model_kmeans.transform(df)
-		val data = Array[DataChunk]()
 		val auc_rf = evalAUC.evaluate(pred_rf)
 		val auc_mlp = evalAUC.evaluate(pred_mlp)
 		val silhouette = clusteringEvaluator.evaluate(pred_kmeans)
+		val m = new HashMap[String,Object]()
+		val timestamp:Double = System.currentTimeMillis/1000
+		m.put("auc_rf",auc_rf.toString)
+		m.put("auc_mlp",auc_mlp.toString)
+		m.put("silhouette",silhouette.toString)
+		m.put("timestamp",timestamp.toString)
+		send_to_elastic("streamdemo","metric","1",m)
 		log.info(s"auc_rf $auc_rf auc_mlp $auc_mlp silhouette $silhouette")
 		DataChunk(auc_rf,auc_mlp,silhouette)
 	}
@@ -352,6 +363,14 @@ class StreamDemo(args: ArgsConfig) {
 				yield waitOnFuture
 
 	log.info(s"Starting Web Server listening on port $port\n")
+
+	/** setup elasticsearch client **/
+
+	elasticClient = new RestHighLevelClient(
+		RestClient.builder(new HttpHost("10.20.30.66",9200, "http"),
+		 	new HttpHost("10.20.30.67",9200,"http"),
+		 	new HttpHost("10.20.30.68",9200,"http") ))
+
 	Await.result(f,Duration.Inf) 
 
 
