@@ -18,7 +18,7 @@ To run in yarn mode
 spark-submit --master yarn target/scala-2.11/streamdemo-assembly-0.1.jar -y 
 
 To run in standalone spark mode
-spark-submit --master local[*] target/scala-2.11/streamdemo-assembly-0.1.jar -s
+spark-submit --master local[\*] target/scala-2.11/streamdemo-assembly-0.1.jar -s
 
 To specify port number to use for the http server
 spark-submit --master yarn target/scala-2.11/streamdemo-assembly-0.1.jar -y -p 9802
@@ -31,3 +31,22 @@ curl -H "Content-Type: application/json" -X POST -d '{"filepath" :"/user/mapr/pr
 curl -H "Content-Type: application/json" -X POST -d '{"filepath" :"/user/mapr/projects/SparkStreaming/stream_test/sample500.csv", "hasHeader": "true", "inferSchema": "true", "sep":","}' http://0.0.0.0:9808/startMetrics
 
 curl -H "Content-Type: application/json" -X POST -d '{"filepath" :"/user/mapr/projects/SparkStreaming/stream_test/sample500.csv", "hasHeader": "true", "inferSchema": "true", "sep":","}' http://0.0.0.0:9808/stopMetrics
+
+
+To see elasticsearch data -
+curl -H "Content-Type: application/json" -X GET 'localhost:9200/streamdemo/\_search?size=1000&pretty=true'
+
+To set mapping for data -
+curl -X PUT "localhost:9200/streamdemo" -H 'Content-Type: application/json' -d'
+{ "mappings": {
+	  "metric": {
+			"properties": {
+				"timestamp": {
+					"type":   "date",
+					"format": "yyyy-MM-dd HH:mm:ss"
+				}
+			}
+		}
+	}
+}
+
