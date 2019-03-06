@@ -54,6 +54,7 @@ import org.elasticsearch.client.RestClient
 import org.apache.http.HttpHost
 import org.elasticsearch.action.get.GetRequest
 import org.elasticsearch.action.index.{IndexRequest,IndexResponse}
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
 import org.elasticsearch.common.xcontent.{XContentType,XContentBuilder,XContentFactory}
 
 
@@ -82,6 +83,9 @@ class StreamDemo(args: ArgsConfig) {
 	var clusteringEvaluator : ClusteringEvaluator = null
 	var metricGetter : ActorRef = null
 	var elasticClient : RestHighLevelClient = null
+
+	val METRICS_INDEX : String = "streamdemo"
+	val METRICS_DOC_TYPE : String = "metric"
 
 
 	val context = new StreamdemoContext()
@@ -179,14 +183,17 @@ class StreamDemo(args: ArgsConfig) {
 		return df_
 	}
 
-	def send_to_elastic(index:String, doctype:String, id: String, m: Map[String, Object]) : IndexResponse =  { 
+	def send_to_elastic(index:String, doctype:String, m: Map[String, Object]) : IndexResponse =  { 
+		val timestamp = System.currentTimeMillis/1000
+		val format = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
 		val builder = XContentFactory.jsonBuilder()
 		builder.startObject();
 		for ((k,v) <- m) {
 		    builder.field(k, v)
 		}
+		builder.field("timestamp",format.format(new java.util.Date()))
 		builder.endObject()
-		val indexRequest = new IndexRequest(index,doctype,id)
+		val indexRequest = new IndexRequest(index,doctype,timestamp.toString)
 		        .source(builder)
 		elasticClient.index(indexRequest)
 	}
@@ -214,12 +221,10 @@ class StreamDemo(args: ArgsConfig) {
 		val auc_mlp = evalAUC.evaluate(pred_mlp)
 		val silhouette = clusteringEvaluator.evaluate(pred_kmeans)
 		val m = new HashMap[String,Object]()
-		val timestamp:Double = System.currentTimeMillis/1000
 		m.put("auc_rf",auc_rf.toString)
 		m.put("auc_mlp",auc_mlp.toString)
 		m.put("silhouette",silhouette.toString)
-		m.put("timestamp",timestamp.toString)
-		send_to_elastic("streamdemo","metric","1",m)
+		val indexResponse = send_to_elastic(METRICS_INDEX,METRICS_DOC_TYPE,m)
 		log.info(s"auc_rf $auc_rf auc_mlp $auc_mlp silhouette $silhouette")
 		DataChunk(auc_rf,auc_mlp,silhouette)
 	}
@@ -232,7 +237,6 @@ class StreamDemo(args: ArgsConfig) {
 				//send another periodic tick after the specified delay
 				cancellable = system.scheduler.scheduleOnce(delay, self, "tick")
 				// do something
-				log.info("tick")		
 				getMetric(df)
 			case "stop" => 
 				cancellable.cancel()
@@ -367,9 +371,34 @@ class StreamDemo(args: ArgsConfig) {
 	/** setup elasticsearch client **/
 
 	elasticClient = new RestHighLevelClient(
+		/*
 		RestClient.builder(new HttpHost("10.20.30.66",9200, "http"),
 		 	new HttpHost("10.20.30.67",9200,"http"),
-		 	new HttpHost("10.20.30.68",9200,"http") ))
+		 	new HttpHost("10.20.30.68",9200,"http") )
+			*/
+		RestClient.builder(new HttpHost("localhost",9200, "http"))
+	)
+	import org.elasticsearch.action.admin.indices.get.GetIndexRequest
+	val getIndexRequest = new GetIndexRequest().indices(METRICS_INDEX)  
+
+	if (! elasticClient.indices().exists(getIndexRequest)) {
+	
+		val createIndexRequest = new CreateIndexRequest(METRICS_INDEX).mapping( "metric", """
+		{ 
+		  "metric": {
+				"properties": {
+					"timestamp": {
+						"type":   "date",
+						"format": "yyyy-MM-dd HH:mm:ss"
+					}
+				}
+			}
+		} """,XContentType.JSON)
+		elasticClient.indices().create(createIndexRequest)
+	}
+
+
+
 
 	Await.result(f,Duration.Inf) 
 
