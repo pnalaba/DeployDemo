@@ -2,12 +2,16 @@ package streamdemo
 
 import java.lang.Exception
 
-import scala.concurrent.Future
-import scala.util.control.{Exception, NonFatal}
-import scala.io.Source
-import scala.util.parsing.json._
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import org.apache.log4j.{Level, Logger}
+import scala.concurrent.Future
+import scala.io.Source
+import scala.util.control.{Exception, NonFatal}
+import scala.util.parsing.json._
+
+
+
+
 
 case class ArgsConfig(port: Int = -1, spark: Boolean = true, yarn: Boolean = false,
    local: Boolean = false)

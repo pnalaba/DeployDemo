@@ -7,6 +7,7 @@ trapExit := false
 
 //logLevel := Level.Error
 
+ensimeScalaVersion in ThisBuild := "2.11.8"
 lazy val root = (project in file(".")).
   settings(
     version := "0.1",

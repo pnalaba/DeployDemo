@@ -1,60 +1,57 @@
 package streamdemo
 
-import scala.io.StdIn
-import scala.concurrent._
-import java.util.Properties
 import java.io.File
+import java.util.Properties
+import scala.collection.JavaConversions._
+import scala.collection.mutable._
+import scala.concurrent._
+import scala.concurrent.duration._
+import scala.io.StdIn
+import scala.language.postfixOps
 
-import scala.util.{Random,Success,Failure}
 import akka.actor.ActorSystem
 import akka.actor.Status
-//import akka.pattern.{ask, pipe}
-import scala.concurrent.duration._
-import akka.util.Timeout
-import akka.util.ByteString
-import akka.http.scaladsl.Http
-import akka.stream.ActorMaterializer
+import scala.util.{Random,Success,Failure}
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import akka.Done
-import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, StatusCodes}
+import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.Route
+import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Source
+import akka.util.ByteString
+import akka.util.Timeout
+import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
+
+import org.apache.spark._
+import org.apache.spark.ml.evaluation._
+import org.apache.spark.ml.PipelineModel
+import org.apache.spark.mllib._
+import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql._
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types._
-import org.apache.spark.sql._
-import org.apache.spark.mllib.linalg.Vectors
-import org.apache.spark.mllib._
-import org.apache.spark.rdd.RDD
-
-import scala.collection.mutable._
-import scala.collection.JavaConversions._
 import org.apache.spark.{SparkConf, SparkContext}
+
 import spray.json._
-import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import spray.json.DefaultJsonProtocol._
 //import spray.json.RootJsonFormat
 
-import org.apache.spark._
-import org.apache.spark.rdd.RDD
-import org.apache.spark.sql._
-import streamdemo._
-import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.log4j.Level
 import org.apache.log4j.Logger
+import streamdemo._
 
-import scala.language.postfixOps
-import org.apache.spark.ml.PipelineModel
-import org.apache.spark.ml.evaluation._
 
 //imports for elasticsearch REST Api
-import org.elasticsearch.client.RestHighLevelClient
-import org.elasticsearch.client.RestClient
 import org.apache.http.HttpHost
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
 import org.elasticsearch.action.get.GetRequest
 import org.elasticsearch.action.index.{IndexRequest,IndexResponse}
-import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
+import org.elasticsearch.client.RestClient
+import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.common.xcontent.{XContentType,XContentBuilder,XContentFactory}
 
 
@@ -76,13 +73,13 @@ class StreamDemo(args: ArgsConfig) {
 	var sc : SparkContext = null
 	var df : DataFrame = null
 	var load_info_df : DfLoadReq = null
-	var model_rf : PipelineModel = null
-	var model_mlp : PipelineModel = null
-	var model_kmeans : PipelineModel = null
+	var model : Map[String,PipelineModel] = new HashMap[String,PipelineModel]() 
 	var evalAUC : BinaryClassificationEvaluator = null
 	var clusteringEvaluator : ClusteringEvaluator = null
 	var metricGetter : ActorRef = null
 	var elasticClient : RestHighLevelClient = null
+  var available_models : Array[String] = null
+  var selected_models : collection.immutable.Map[String,PipelineModel] = null
 
 	val METRICS_INDEX : String = "streamdemo"
 	val METRICS_DOC_TYPE : String = "metric"
@@ -91,10 +88,9 @@ class StreamDemo(args: ArgsConfig) {
 	val context = new StreamdemoContext()
 	context.printSettings()
 	val DATA_DIR = context.settings.dataDir
+  val MAPRFS_PREFIX = "/mapr/my.cluster.com"
 
-	val MODEL_RF_DIR = DATA_DIR+"/testrf"
-	val MODEL_MLP_DIR = DATA_DIR+"/testmlp"
-	val MODEL_KMEANS_DIR = DATA_DIR+"/testkmeans"
+	val MODEL_DIR = DATA_DIR+"models/"
 
 
 
@@ -129,11 +125,6 @@ class StreamDemo(args: ArgsConfig) {
 		val sep: String = ",",
 		val inferSchema: String = "false")
 
-	case class DataChunk(auc_rf: Double, auc_mlp: Double, silhouette : Double)
-	object DataChunk {
-		implicit val dataChunkJsonFormat: RootJsonFormat[DataChunk] = jsonFormat3(DataChunk.apply)
-	}
-
 
 
 
@@ -148,15 +139,25 @@ class StreamDemo(args: ArgsConfig) {
 		}
 		println("Successfully got spark session: "+spark)
 		sc = spark.sparkContext
-		val dummy_count = sc.parallelize(1 to 100).count()
+		val dummy_count = sc.parallelize(1 to 5).count()
 		log.info(s"Got sparkContext $sc and dummy_count=$dummy_count")
 		log.info(s"sc.getExecutorMemoryStatus = ${sc.getExecutorMemoryStatus}")
 		//load the ml models with pretrained parameters
-		model_rf = PipelineModel.read.load(MODEL_RF_DIR)
-		model_mlp = PipelineModel.read.load(MODEL_MLP_DIR)
-		model_kmeans = PipelineModel.read.load(MODEL_KMEANS_DIR)
+
+    //get list of models in model_dir
+    available_models = listDirs(MAPRFS_PREFIX+MODEL_DIR)
+    log.info("available_models : "+available_models.mkString(":"))
+
+    for (model_name <- available_models) {
+      model += (model_name -> PipelineModel.read.load(MODEL_DIR+model_name))
+    }
+
+		//model("randomForest") = PipelineModel.read.load(MODEL_RF_DIR)
+		//model("multiLayerPercepteron") = PipelineModel.read.load(MODEL_MLP_DIR)
+		//model("kmeans") = PipelineModel.read.load(MODEL_KMEANS_DIR)
 		evalAUC = new BinaryClassificationEvaluator().setLabelCol("target").setMetricName("areaUnderROC").setRawPredictionCol("probability")
-		clusteringEvaluator = new ClusteringEvaluator()
+    clusteringEvaluator = new ClusteringEvaluator()
+
 	}
 
 
@@ -183,7 +184,7 @@ class StreamDemo(args: ArgsConfig) {
 		return df_
 	}
 
-	def send_to_elastic(index:String, doctype:String, m: Map[String, Object]) : IndexResponse =  { 
+	def send_to_elastic(index:String, doctype:String, m: Map[String, String]) : IndexResponse =  { 
 		val timestamp = System.currentTimeMillis/1000
 		val format = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
 		val builder = XContentFactory.jsonBuilder()
@@ -201,7 +202,7 @@ class StreamDemo(args: ArgsConfig) {
 
 
 	def getMetrics(total_df: DataFrame) = {
-		val data = Array[DataChunk]()
+		val data = Array[Map[String,String]]()
 		for (i <- 0 to 4) {
 			data :+ getMetric(total_df)
 		}
@@ -214,19 +215,19 @@ class StreamDemo(args: ArgsConfig) {
 		val total_df_size = total_df.count()
 		val sample_fraction = scala.math.min(SAMPLE_FRACTION,MAX_SAMPLE_SIZE.toDouble/total_df_size.toDouble)
 		val df = total_df.sample(sample_fraction)
-		val pred_rf = model_rf.transform(df)
-		val pred_mlp = model_mlp.transform(df)
-		val pred_kmeans = model_kmeans.transform(df)
+		val pred_rf = model("randomForest").transform(df)
+		val pred_mlp = model("multiLayerPercepteron").transform(df)
+		val pred_kmeans = model("kmeans").transform(df)
 		val auc_rf = evalAUC.evaluate(pred_rf)
 		val auc_mlp = evalAUC.evaluate(pred_mlp)
 		val silhouette = clusteringEvaluator.evaluate(pred_kmeans)
-		val m = new HashMap[String,Object]()
+		val m = new HashMap[String,String]()
 		m.put("auc_rf",auc_rf.toString)
 		m.put("auc_mlp",auc_mlp.toString)
 		m.put("silhouette",silhouette.toString)
 		val indexResponse = send_to_elastic(METRICS_INDEX,METRICS_DOC_TYPE,m)
 		log.info(s"auc_rf $auc_rf auc_mlp $auc_mlp silhouette $silhouette")
-		DataChunk(auc_rf,auc_mlp,silhouette)
+    m.toMap
 	}
 
 
@@ -238,23 +239,28 @@ class StreamDemo(args: ArgsConfig) {
 				cancellable = system.scheduler.scheduleOnce(delay, self, "tick")
 				// do something
 				getMetric(df)
-			case "stop" => 
-				cancellable.cancel()
 		}
+	}
+
+	/** returns list of subdirectories in a directory **/
+	def listDirs(dirpath: String): Array[String] = {
+		log.info(s"Retrieving names of subdirectories in directory $dirpath")
+    (new File(dirpath)).listFiles.filter(_.isDirectory).map(_.getName)
 	}
 
 
 
 	/** returns list of files in a directory **/
-	def listFiles(dirpath: String): Future[List[String]] = {
+	def listFiles(dirpath: String): Array[String] = {
 		log.info(s"Retrieving names of files in directory $dirpath")
 		val d = new File(dirpath)
 		if (d.exists && d.isDirectory) {
-			Future {d.listFiles.map(_.getPath).toList}
+			d.listFiles.map(_.getName)
 		} else {
-			Future { List[String]() }
+			Array[String]() 
 		}
 	}
+
 
 	val route: Route = cors() {
 		path("") {
@@ -290,19 +296,31 @@ class StreamDemo(args: ArgsConfig) {
 			metricGetter ! "stop"
 			complete("stopped metricGetter")
 		}~		
+    path("models") {
+      complete(available_models)
+    }~
+    pathPrefix("selectModels" ) {
+      pathPrefix(Segment){ s =>
+        val modelnames = s.split(",")
+        log.info("model :"+s)
+        selected_models = modelnames.map(x => x->model(x)).toMap
+        complete("ok")
+      }
+    }~
 		post {
-			path("dir") {
-				entity(as[DfLoadReq]) { obj =>
-					val saved: Future[List[String]] = listFiles(obj.filepath)
-					onComplete(saved) {
-						case Success(files) => {
-							val filesStr = files.mkString("\n")+"\n"
-							complete(filesStr)
-						}
-						case Failure(t) => complete("An error has occured: "+t.getMessage)
-					}
-				}
-			}~
+      path("dir" ) {
+        entity(as[String]) { dirname =>
+          log.info(s"Doing dirname : $dirname")
+	        val saved: Future[Array[String]] = Future{ listFiles(dirname) }
+	        onComplete(saved) {
+	        	case Success(files) => {
+	        		val filesStr = files.mkString(",")
+	        		complete(filesStr)
+	        	}
+	        	case Failure(t) => complete("An error has occured: "+t.getMessage)
+	        }
+        }
+	    }~
 			path("countlines") {
 				entity(as[DfLoadReq]) { obj => {
 						log.info(s"route counlines called")
@@ -323,14 +341,16 @@ class StreamDemo(args: ArgsConfig) {
 					}// end of function with arg filePath
 				} //end of entity(as[DfLoadReq])...
 			}~		
-			path("startMetrics") {
+      path("startMetrics" /IntNumber ) { seconds =>
 				entity(as[DfLoadReq]) { obj => {
-						log.info(s"route startMetrics called")
+						log.info(s"route startMetrics called with sampling period =$seconds")
         		implicit val timeout = Timeout(60 seconds)
 						val df = loadDataframe(obj)
-						if (metricGetter == null ) {
-							metricGetter = system.actorOf(Props(new MetricGetter(df)), name="metricGetter")
+						if (metricGetter != null ) {
+							metricGetter ! "stop"
+              metricGetter = null
 						}
+						metricGetter = system.actorOf(Props(new MetricGetter(df, Duration(seconds,"seconds"))), name="metricGetter")
 						metricGetter ! "tick"
 						complete("started metricGetter")
 					}// end of function with arg filePath
@@ -340,7 +360,7 @@ class StreamDemo(args: ArgsConfig) {
 				entity(as[DfLoadReq]) { obj => {
 						log.info(s"route getMetric called")
         		implicit val timeout = Timeout(60 seconds)
-						val result: Future[DataChunk] = Future[DataChunk] {
+						val result: Future[collection.immutable.Map[String,String]] = Future[collection.immutable.Map[String,String]] {
 							val df = loadDataframe(obj)
 							val metric = getMetric(df)
 							metric
@@ -357,26 +377,23 @@ class StreamDemo(args: ArgsConfig) {
 	} // Route
 
 
-
 	val port = if (args.port != -1) args.port else context.settings.port
 	//val bindingFuture = Http().bindAndHandle(route, "0.0.0.0", port)
 
 	//hack for running forever
 	val f = for {bindingFuture <- Http().bindAndHandle(route, "0.0.0.0", port)
-				waitOnFuture <- Promise[Done].future }
+				waitOnFuture <- Promise[akka.Done].future }
 				yield waitOnFuture
-
 	log.info(s"Starting Web Server listening on port $port\n")
 
 	/** setup elasticsearch client **/
-
 	elasticClient = new RestHighLevelClient(
 		/*
 		RestClient.builder(new HttpHost("10.20.30.66",9200, "http"),
 		 	new HttpHost("10.20.30.67",9200,"http"),
 		 	new HttpHost("10.20.30.68",9200,"http") )
 			*/
-		RestClient.builder(new HttpHost("localhost",9200, "http"))
+		RestClient.builder(new HttpHost("10.20.30.66",9200, "http"))
 	)
 	import org.elasticsearch.action.admin.indices.get.GetIndexRequest
 	val getIndexRequest = new GetIndexRequest().indices(METRICS_INDEX)  
