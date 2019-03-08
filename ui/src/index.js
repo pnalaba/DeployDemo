@@ -8,6 +8,7 @@ import rforest from "./randomForest.png";
 import bulb from "./bulb.png";
 import axios from "axios";
 import * as d3 from "d3";
+import { MultiLineChart } from "./component.js";
 
 class DeployOptions extends React.Component {
   render() {
@@ -119,76 +120,19 @@ class Metrics extends React.Component {
 }
 
 class MetricReader extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      data: [],
-      componentWidth: 700,
-      url:
-        "http://" +
-        window.location.hostname +
-        ":9200/streamdemo/_search?size=1000&pretty=true",
-      samplePeriod: props.samplePeriod //in seconds
-    };
-    this.handleGetData = this.handleGetData.bind(this);
-    this.getData = this.getData.bind(this);
-    this.intervalHandle = null;
-  }
-
-  getData() {
-    console.log("fetching " + this.state.url);
-    fetch(this.state.url, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json"
-      },
-
-      mode: "cors"
-    })
-      .then(response => response.json())
-      .then(data => {
-        var objs = data.hits.hits;
-        objs.sort((a, b) => parseInt(a._id) - parseInt(b._id));
-        const source = objs.map(s => s._source);
-        const silhouette = source.map(s => {
-          return { x: s.timestamp, y: s.silhouette };
-        });
-        const auc_rf = source.map(s => {
-          return { x: s.timestamp, y: s.auc_rf };
-        });
-        const auc_mlp = source.map(s => {
-          return { x: s.timestamp, y: s.auc_mlp };
-        });
-        this.setState({ data: [silhouette, auc_rf, auc_mlp] });
-        //console.log([silhouette]);
-      })
-      .catch(e => console.log(e));
-  }
-
-  handleGetData(event) {
-    if (this.intervalHandler != null) {
-      clearInterval(this.intervalHandle);
-    }
-    this.getData();
-    this.intervalHandle = setInterval(
-      this.getData,
-      this.state.samplePeriod * 1000
-    );
-    event.preventDefault();
-  }
-
   render() {
     return (
       <div>
-        <form onSubmit={this.handleGetData}>
+        <form onSubmit={this.props.handleGetMetricData}>
           <input type="submit" value="GetData" />
         </form>
+        <p> auc_rf, auc_mlp, silhouette_kmeans </p>
         <LineChart
-          data={this.state.data}
+          data={this.props.data}
           datePattern={"%Y-%m-%d %H:%M:%S"}
           xType={"time"}
-          width={this.state.componentWidth}
-          height={this.state.componentWidth / 2}
+          width={this.props.width}
+          height={this.props.height}
           axisLabels={{ x: "time" }}
           yDomainRange={[0, 1]}
           axes
@@ -199,7 +143,6 @@ class MetricReader extends React.Component {
             }
           }}
         />
-        <Legend data={this.state.data} />
       </div>
     );
   }
@@ -215,7 +158,13 @@ class Calculator extends React.Component {
       model_options: [],
       datafile_options: [],
       datafile: null,
-      samplePeriod: 15
+      metric_sample_period: 15,
+      sample_data: [[{ x: 1, y: 1 }, { x: 2, y: 4 }]],
+      metric_data: [],
+      metric_url:
+        "http://" +
+        window.location.hostname +
+        ":9200/streamdemo/_search?size=1000&pretty=true"
     };
     var classHandle = this;
     axios
@@ -243,6 +192,8 @@ class Calculator extends React.Component {
         });
       })
       .catch(e => console.log(e));
+    this.handleGetMetricData = this.handleGetMetricData.bind(this);
+    this.getMetricData = this.getMetricData.bind(this);
   }
 
   handleModelChange(event) {
@@ -272,13 +223,14 @@ class Calculator extends React.Component {
 
   handlePeriodChange(event) {
     this.setState({
-      samplePeriod: event.target.value
+      metric_sample_period: event.target.value
     });
     event.preventDefault();
   }
 
   handleMetricStart(event) {
-    var url = this.state.server + "/startMetrics/" + this.state.samplePeriod;
+    var url =
+      this.state.server + "/startMetrics/" + this.state.metric_sample_period;
     var body = JSON.stringify({
       filepath:
         "/user/mapr/projects/SparkStreaming/stream_test/" + this.state.datafile,
@@ -309,6 +261,48 @@ class Calculator extends React.Component {
     event.preventDefault();
   }
 
+  getMetricData() {
+    console.log("fetching " + this.state.metric_url);
+    fetch(this.state.metric_url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json"
+      },
+
+      mode: "cors"
+    })
+      .then(response => response.json())
+      .then(data => {
+        var objs = data.hits.hits;
+        objs.sort((a, b) => parseInt(a._id) - parseInt(b._id));
+        const source = objs.map(s => s._source);
+        const silhouette = source.map(s => {
+          return { x: s.timestamp, y: s.silhouette };
+        });
+        const auc_rf = source.map(s => {
+          return { x: s.timestamp, y: s.auc_rf };
+        });
+        const auc_mlp = source.map(s => {
+          return { x: s.timestamp, y: s.auc_mlp };
+        });
+        this.setState({ metric_data: [silhouette, auc_rf, auc_mlp] });
+        //console.log([silhouette]);
+      })
+      .catch(e => console.log(e));
+  }
+
+  handleGetMetricData(event) {
+    event.preventDefault();
+    if (this.getMetricIntervalHandle != null) {
+      clearInterval(this.getMetricIntervalHandle);
+    }
+    this.getMetricData();
+    this.getMetricIntervalHandle = setInterval(
+      this.getMetricData,
+      this.state.metric_sample_period * 1000
+    );
+  }
+
   render() {
     return (
       <div>
@@ -332,17 +326,14 @@ class Calculator extends React.Component {
             />
           </li>
 
-          <li>
-            <DatafileSelector
-              value={this.state.datafile}
-              options={this.state.datafile_options}
-              handleChange={x => this.handleFileChange(x)}
-            />
-          </li>
+          <h5>
+            ---- In this demo, we simulate an input data stream by sampling from
+            a big dataset ----
+          </h5>
 
           <li>
             <Metrics
-              value={this.state.samplePeriod}
+              value={this.state.metric_sample_period}
               handleChange={x => this.handlePeriodChange(x)}
               handleStart={x => this.handleMetricStart(x)}
               handleStop={x => this.handleMetricStop(x)}
@@ -350,7 +341,12 @@ class Calculator extends React.Component {
           </li>
 
           <li>
-            <MetricReader samplePeriod={this.state.samplePeriod} />
+            <MetricReader
+              handleGetMetricData={x => this.handleGetMetricData(x)}
+              data={this.state.metric_data}
+              width={700}
+              height={350}
+            />
           </li>
 
           <li>
