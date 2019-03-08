@@ -1,12 +1,13 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import "./index.css";
-import { LineChart } from "react-easy-chart";
+import { LineChart, Legend } from "react-easy-chart";
 import { CsvToHtmlTable } from "react-csv-to-table";
 import mlp from "./nnet.png";
 import rforest from "./randomForest.png";
 import bulb from "./bulb.png";
 import axios from "axios";
+import * as d3 from "d3";
 
 class DeployOptions extends React.Component {
   render() {
@@ -41,10 +42,6 @@ class DeployOptions extends React.Component {
 
 ///// Get file input from user
 class ModelSelector extends React.Component {
-  constructor(props) {
-    super(props);
-  }
-
   render() {
     return (
       <p>
@@ -124,16 +121,23 @@ class Metrics extends React.Component {
 class MetricReader extends React.Component {
   constructor(props) {
     super(props);
-    this.state = {};
+    this.state = {
+      data: [],
+      componentWidth: 700,
+      url:
+        "http://" +
+        window.location.hostname +
+        ":9200/streamdemo/_search?size=1000&pretty=true",
+      samplePeriod: props.samplePeriod //in seconds
+    };
+    this.handleGetData = this.handleGetData.bind(this);
+    this.getData = this.getData.bind(this);
+    this.intervalHandle = null;
   }
 
-  handleGetData(event) {
-    var url =
-      "http://" +
-      window.location.hostname +
-      ":9200/streamdemo/_search?size=1000&pretty=true";
-    console.log("fetching url :" + url);
-    fetch(url, {
+  getData() {
+    console.log("fetching " + this.state.url);
+    fetch(this.state.url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json"
@@ -142,16 +146,61 @@ class MetricReader extends React.Component {
       mode: "cors"
     })
       .then(response => response.json())
-      .then(data => console.log(data.hits.hits.map(x => x._source)))
+      .then(data => {
+        var objs = data.hits.hits;
+        objs.sort((a, b) => parseInt(a._id) - parseInt(b._id));
+        const source = objs.map(s => s._source);
+        const silhouette = source.map(s => {
+          return { x: s.timestamp, y: s.silhouette };
+        });
+        const auc_rf = source.map(s => {
+          return { x: s.timestamp, y: s.auc_rf };
+        });
+        const auc_mlp = source.map(s => {
+          return { x: s.timestamp, y: s.auc_mlp };
+        });
+        this.setState({ data: [silhouette, auc_rf, auc_mlp] });
+        //console.log([silhouette]);
+      })
       .catch(e => console.log(e));
+  }
+
+  handleGetData(event) {
+    if (this.intervalHandler != null) {
+      clearInterval(this.intervalHandle);
+    }
+    this.getData();
+    this.intervalHandle = setInterval(
+      this.getData,
+      this.state.samplePeriod * 1000
+    );
     event.preventDefault();
   }
 
   render() {
     return (
-      <form onSubmit={this.handleGetData}>
-        <input type="submit" value="GetData" />
-      </form>
+      <div>
+        <form onSubmit={this.handleGetData}>
+          <input type="submit" value="GetData" />
+        </form>
+        <LineChart
+          data={this.state.data}
+          datePattern={"%Y-%m-%d %H:%M:%S"}
+          xType={"time"}
+          width={this.state.componentWidth}
+          height={this.state.componentWidth / 2}
+          axisLabels={{ x: "time" }}
+          yDomainRange={[0, 1]}
+          axes
+          grid
+          style={{
+            ".line0": {
+              stroke: "green"
+            }
+          }}
+        />
+        <Legend data={this.state.data} />
+      </div>
     );
   }
 }
@@ -166,7 +215,7 @@ class Calculator extends React.Component {
       model_options: [],
       datafile_options: [],
       datafile: null,
-      samplePeriod: "15"
+      samplePeriod: 15
     };
     var classHandle = this;
     axios
@@ -301,7 +350,7 @@ class Calculator extends React.Component {
           </li>
 
           <li>
-            <MetricReader />
+            <MetricReader samplePeriod={this.state.samplePeriod} />
           </li>
 
           <li>
@@ -312,6 +361,8 @@ class Calculator extends React.Component {
             <h2>Deploying the solution ... </h2>
             <br />
           </li>
+
+          <li />
 
           <li>
             <p>

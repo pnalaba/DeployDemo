@@ -239,6 +239,8 @@ class StreamDemo(args: ArgsConfig) {
 				cancellable = system.scheduler.scheduleOnce(delay, self, "tick")
 				// do something
 				getMetric(df)
+      case "stop" =>
+        context stop self
 		}
 	}
 
@@ -348,7 +350,6 @@ class StreamDemo(args: ArgsConfig) {
 						val df = loadDataframe(obj)
 						if (metricGetter != null ) {
 							metricGetter ! "stop"
-              metricGetter = null
 						}
 						metricGetter = system.actorOf(Props(new MetricGetter(df, Duration(seconds,"seconds"))), name="metricGetter")
 						metricGetter ! "tick"
