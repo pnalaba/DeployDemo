@@ -122,7 +122,7 @@ export function makeLineChart(
 
     chartObj.height =
       // HACK was getting style("height") = 0, so forcing it to width/2 TODO
-      Math.floor(parseInt(chartObj.chartDiv.style("width"), 10) / 2) -
+      parseInt(chartObj.chartDiv.style("height"), 10) -
       (chartObj.margin.top + chartObj.margin.bottom);
 
     /* Update the range of the scale with new width/height */
