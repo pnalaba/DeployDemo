@@ -10,59 +10,63 @@ export function makeLineChart(
   var color = d3.scale.category10();
   const CHART_INIT_WIDTH = 650;
   const CHART_INIT_HEIGHT = 480;
-  chartObj.xAxisLable = axisLables.xAxis;
-  chartObj.yAxisLable = axisLables.yAxis;
-  /*
-		 yObjsects format:
-		 {y1:{column:'',name:'name',color:'color'},y2}
-	 */
 
-  chartObj.data = dataset;
-  chartObj.margin = { top: 15, right: 60, bottom: 30, left: 50 };
-  chartObj.width =
-    CHART_INIT_WIDTH - chartObj.margin.left - chartObj.margin.right;
-  chartObj.height =
-    CHART_INIT_HEIGHT - chartObj.margin.top - chartObj.margin.bottom;
+  function data_independent_ops() {
+    chartObj.xAxisLable = axisLables.xAxis;
+    chartObj.yAxisLable = axisLables.yAxis;
+    /*
+			 yObjsects format:
+			 {y1:{column:'',name:'name',color:'color'},y2}
+		 */
 
-  // So we can pass the x and y as strings when creating the function
-  chartObj.xFunct = function(d) {
-    return d[xName];
-  };
+    chartObj.data = dataset;
+    chartObj.margin = { top: 15, right: 60, bottom: 30, left: 50 };
+    chartObj.width =
+      CHART_INIT_WIDTH - chartObj.margin.left - chartObj.margin.right;
+    chartObj.height =
+      CHART_INIT_HEIGHT - chartObj.margin.top - chartObj.margin.bottom;
 
-  // For each yObjs argument, create a yFunction
-  function getYFn(column) {
-    return function(d) {
-      return d[column];
+    // So we can pass the x and y as strings when creating the function
+    chartObj.xFunct = function(d) {
+      return d[xName];
     };
-  }
 
-  // Object instead of array
-  chartObj.yFuncts = [];
-  for (var y in yObjs) {
-    yObjs[y].name = y;
-    yObjs[y].yFunct = getYFn(yObjs[y].column); //Need this  list for the ymax function
-    chartObj.yFuncts.push(yObjs[y].yFunct);
-  }
-
-  //Formatter functions for the axes
-  chartObj.formatAsNumber = d3.format(".0f");
-  chartObj.formatAsDecimal = d3.format(".2f");
-  chartObj.formatAsCurrency = d3.format("$.2f");
-  chartObj.formatAsFloat = function(d) {
-    if (d % 1 !== 0) {
-      return d3.format(".2f")(d);
-    } else {
-      return d3.format(".0f")(d);
+    // For each yObjs argument, create a yFunction
+    function getYFn(column) {
+      return function(d) {
+        return d[column];
+      };
     }
-  };
 
-  chartObj.formatAsDate = function(d) {
-    return d3.time.format("%x %X")(new Date(d));
-  };
-  chartObj.xFormatter = chartObj.formatAsDate;
-  chartObj.yFormatter = chartObj.formatAsFloat;
+    // Object instead of array
+    chartObj.yFuncts = [];
+    for (var y in yObjs) {
+      yObjs[y].name = y;
+      yObjs[y].yFunct = getYFn(yObjs[y].column); //Need this  list for the ymax function
+      chartObj.yFuncts.push(yObjs[y].yFunct);
+    }
 
-  chartObj.bisectYear = d3.bisector(chartObj.xFunct).left; //< Can be overridden in definition
+    //Formatter functions for the axes
+    chartObj.formatAsNumber = d3.format(".0f");
+    chartObj.formatAsDecimal = d3.format(".2f");
+    chartObj.formatAsCurrency = d3.format("$.2f");
+    chartObj.formatAsFloat = function(d) {
+      if (d % 1 !== 0) {
+        return d3.format(".2f")(d);
+      } else {
+        return d3.format(".0f")(d);
+      }
+    };
+
+    chartObj.formatAsDate = function(d) {
+      return d3.time.format("%x %X")(new Date(d));
+    };
+    chartObj.xFormatter = chartObj.formatAsDate;
+    chartObj.yFormatter = chartObj.formatAsFloat;
+
+    chartObj.bisectYear = d3.bisector(chartObj.xFunct).left; //< Can be overridden in definition
+  }
+  data_independent_ops();
 
   //Create scale functions
   chartObj.xScale = d3.scale
@@ -78,8 +82,6 @@ export function makeLineChart(
     .linear()
     .range([chartObj.height, 0])
     .domain([0, d3.max(chartObj.yFuncts.map(chartObj.max))]);
-
-  chartObj.formatAsYear = d3.format("");
 
   //Create axis
   chartObj.xAxis = d3.svg
@@ -119,7 +121,8 @@ export function makeLineChart(
       (chartObj.margin.left + chartObj.margin.right);
 
     chartObj.height =
-      parseInt(chartObj.chartDiv.style("height"), 10) -
+      // HACK was getting style("height") = 0, so forcing it to width/2 TODO
+      Math.floor(parseInt(chartObj.chartDiv.style("width"), 10) / 2) -
       (chartObj.margin.top + chartObj.margin.bottom);
 
     /* Update the range of the scale with new width/height */
@@ -177,11 +180,7 @@ export function makeLineChart(
       .attr("class", "inner-box");
     var chartSelector = selector + " .inner-box";
     chartObj.chartDiv = d3.select(chartSelector);
-    /* HACK was getting style("height") = 0, so forcing it to width/2 TODO  **/
-    var style_width_div2 = Math.floor(
-      parseInt(chartObj.chartDiv.style("width"), 10) / 2
-    );
-    chartObj.chartDiv.style("height", style_width_div2 + "px");
+
     d3.select(window).on("resize." + chartSelector, chartObj.update_svg_size);
     chartObj.update_svg_size();
     return chartObj;
