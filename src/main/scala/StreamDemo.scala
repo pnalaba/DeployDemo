@@ -1,6 +1,7 @@
 package streamdemo
 
 import java.io.File
+import java.io.IOException
 import java.util.Properties
 import scala.collection.JavaConversions._
 import scala.collection.mutable._
@@ -50,6 +51,9 @@ import org.apache.http.HttpHost
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
 import org.elasticsearch.action.get.GetRequest
 import org.elasticsearch.action.index.{IndexRequest,IndexResponse}
+import org.elasticsearch.index.reindex.DeleteByQueryRequest
+import org.elasticsearch.index.query.QueryBuilders 
+import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.common.xcontent.{XContentType,XContentBuilder,XContentFactory}
@@ -69,6 +73,7 @@ class StreamDemo(args: ArgsConfig) {
 	log.setLevel(Level.INFO)
 
 
+  //Class members
 	var spark : SparkSession = null 
 	var sc : SparkContext = null
 	var df : DataFrame = null
@@ -80,6 +85,7 @@ class StreamDemo(args: ArgsConfig) {
 	var elasticClient : RestHighLevelClient = null
   var available_models : Array[String] = null
   var selected_models : collection.immutable.Map[String,PipelineModel] = null
+  var state : Map[String,String] = new HashMap[String,String]()
 
 	val METRICS_INDEX : String = "streamdemo"
 	val METRICS_DOC_TYPE : String = "metric"
@@ -158,6 +164,7 @@ class StreamDemo(args: ArgsConfig) {
 
 
 
+
 	//format for unmarshalling and marshalling
 	implicit val filePathFormat = jsonFormat4(DfLoadReq)
 
@@ -194,6 +201,14 @@ class StreamDemo(args: ArgsConfig) {
 		        .source(builder)
 		elasticClient.index(indexRequest)
 	}
+
+  def elastic_delete_docs_from_index(index:String, doctype:String) : String = {
+    val del_request = new DeleteByQueryRequest(index);
+    del_request.setConflicts("proceed");
+    del_request.setQuery(QueryBuilders.matchAllQuery())
+    val bulkResponse = elasticClient.deleteByQuery(del_request, RequestOptions.DEFAULT)
+    return s"Deleted ${bulkResponse.getDeleted()}  of ${bulkResponse.getTotal()}\n"
+  }
 
 
 
@@ -292,7 +307,21 @@ class StreamDemo(args: ArgsConfig) {
 		path("stopMetrics") {
 			log.info(s"route stopMetrics called")
 			metricGetter ! "stop"
+      state -= "metric_state"
 			complete("stopped metricGetter")
+		}~		
+		path("deleteMetrics") {
+			log.info(s"route deleteMetrics called")
+      val result:Future[String] = Future[String] {
+        try {
+        elastic_delete_docs_from_index(METRICS_INDEX,METRICS_DOC_TYPE);
+        } catch {
+          case x:IOException  => "Got an IOException"
+        }
+      }
+      onComplete(result) { value => 
+			  complete(s"ret: $value\n")
+      }
 		}~		
     path("models") {
       complete(available_models)
@@ -349,6 +378,8 @@ class StreamDemo(args: ArgsConfig) {
 						}
 						metricGetter = system.actorOf(Props(new MetricGetter(df, Duration(seconds,"seconds"))), name="metricGetter")
 						metricGetter ! "tick"
+            state.put("metric_state","sampling")
+            state.put("sampling_period", seconds.toString) //set class member
 						complete("started metricGetter")
 					}// end of function with arg filePath
 				} //end of entity(as[DfLoadReq])...
@@ -370,6 +401,7 @@ class StreamDemo(args: ArgsConfig) {
 					}// end of function with arg filePath
 				} //end of entity(as[DfLoadReq])...
 			}
+
 		}	
 	} // Route
 
