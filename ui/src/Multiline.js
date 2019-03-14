@@ -110,7 +110,7 @@ export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
       .orient("left")
       .tickFormat(chartObj.yFormatter); //< Can be overridden in definition
 
-    chartObj.xScale = d3.scale.linear().range([0, chartObj.width]);
+    chartObj.xScale = d3.time.scale().range([0, chartObj.width]);
   }
   function getYScaleFn(yObj) {
     return function(d) {
