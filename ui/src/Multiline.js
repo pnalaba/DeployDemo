@@ -25,7 +25,7 @@ export class Multiline extends Component {
   }
 }
 
-export function makeLineChart(xName, yObjs, axisLables) {
+export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
   var chartObj = {};
   var color = d3.scale.category10();
   //global variables
@@ -80,7 +80,12 @@ export function makeLineChart(xName, yObjs, axisLables) {
       }
     };
 
-    chartObj.xFormatter = chartObj.formatAsNumber;
+    chartObj.xFormatter =
+      xAxisDateFormatStr == null
+        ? chartObj.formatAsNumber
+        : function(d) {
+            return d3.time.format(xAxisDateFormatStr)(d);
+          };
     chartObj.yFormatter = chartObj.formatAsFloat;
 
     chartObj.bisectYear = d3.bisector(chartObj.xFunct).left; //< Can be overridden in definition
@@ -159,7 +164,7 @@ export function makeLineChart(xName, yObjs, axisLables) {
       .attr("y1", minY);
     focus
       .select(".focus.year")
-      .text("Year: " + chartObj.xFormatter(chartObj.xFunct(d)));
+      .text(xName + ": " + chartObj.xFormatter(chartObj.xFunct(d)));
   }
 
   init();

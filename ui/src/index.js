@@ -138,7 +138,8 @@ class MetricChart extends React.Component {
     var chart = makeLineChart(
       this.props.xName,
       this.props.yObjs,
-      this.props.axisLabels
+      this.props.axisLabels,
+      this.props.xAxisDateFormatStr
     );
     chart.bind("#" + this.props.chart_id);
     chart.render(this.props.data);
