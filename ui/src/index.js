@@ -121,6 +121,13 @@ class Metrics extends React.Component {
         >
           <input type="submit" value="Stop" />
         </form>
+        <form
+          onSubmit={this.props.handleDelete}
+          style={{ display: "inline-block" }}
+        >
+          <input type="submit" value="Delete old metrics" />
+        </form>
+
         <div style={{ minHeight: "30px" }} />
       </div>
     );
@@ -328,10 +335,20 @@ class Calculator extends React.Component {
 
   handleMetricStop(event) {
     var url = this.state.server + "/stopMetrics";
-    console.log("In handleMetricStop url = " + url);
+    //console.log("In handleMetricStop url = " + url);
     fetch(url)
       .then(response => response.text())
       .then(data => console.log("stopMetrics: " + data))
+      .catch(e => console.log(e));
+    event.preventDefault();
+  }
+
+  handleMetricDelete(event) {
+    var url = this.state.server + "/deleteMetrics";
+    console.log("In handleMetricStop url = " + url);
+    fetch(url)
+      .then(response => response.text())
+      .then(data => console.log("deleteMetrics: " + data))
       .catch(e => console.log(e));
     event.preventDefault();
   }
@@ -378,6 +395,7 @@ class Calculator extends React.Component {
               handleChange={x => this.handlePeriodChange(x)}
               handleStart={x => this.handleMetricStart(x)}
               handleStop={x => this.handleMetricStop(x)}
+              handleDelete={x => this.handleMetricDelete(x)}
             />
           </li>
 
