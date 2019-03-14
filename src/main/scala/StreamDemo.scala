@@ -151,10 +151,6 @@ class StreamDemo(args: ArgsConfig) {
     for (model_name <- available_models) {
       model += (model_name -> PipelineModel.read.load(MODEL_DIR+model_name))
     }
-
-		//model("randomForest") = PipelineModel.read.load(MODEL_RF_DIR)
-		//model("multiLayerPercepteron") = PipelineModel.read.load(MODEL_MLP_DIR)
-		//model("kmeans") = PipelineModel.read.load(MODEL_KMEANS_DIR)
 		evalAUC = new BinaryClassificationEvaluator().setLabelCol("target").setMetricName("areaUnderROC").setRawPredictionCol("probability")
     clusteringEvaluator = new ClusteringEvaluator()
 
@@ -192,7 +188,7 @@ class StreamDemo(args: ArgsConfig) {
 		for ((k,v) <- m) {
 		    builder.field(k, v)
 		}
-		builder.field("timestamp",format.format(new java.util.Date()))
+		builder.field("date",format.format(new java.util.Date()))
 		builder.endObject()
 		val indexRequest = new IndexRequest(index,doctype,timestamp.toString)
 		        .source(builder)
@@ -405,7 +401,7 @@ class StreamDemo(args: ArgsConfig) {
 		{ 
 		  "metric": {
 				"properties": {
-					"timestamp": {
+					"date": {
 						"type":   "date",
 						"format": "yyyy-MM-dd HH:mm:ss"
 					}
