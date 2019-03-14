@@ -1,14 +1,14 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import "./index.css";
-import { LineChart, Legend } from "react-easy-chart";
-import { CsvToHtmlTable } from "react-csv-to-table";
-import mlp from "./nnet.png";
-import rforest from "./randomForest.png";
+import "./Multiline.css";
+import { LineChart } from "react-easy-chart";
+//import mlp from "./nnet.png";
+//import rforest from "./randomForest.png";
 import bulb from "./bulb.png";
 import axios from "axios";
-import * as d3 from "d3";
-import { MultiLineChart } from "./component.js";
+import { makeLineChart } from "./Multiline.js";
+import { elastic_data } from "./test_data.js";
 
 class DeployOptions extends React.Component {
   render() {
@@ -17,21 +17,22 @@ class DeployOptions extends React.Component {
         <label>
           {" "}
           <input name="champ" type="checkbox" /> Champion/Challenger --->
-          Specify Champion: <input type="text" value="ensemblejwb_001" />
+          Specify Champion:{" "}
+          <input type="text" value="ensemblejwb_001" readOnly />
         </label>
         <img src={bulb} alt="Logo" />
         <br />
         <label>
           {" "}
           <input name="ab" type="checkbox" /> A/B Testing ---> Specify
-          Proportions: <input type="text" value="0.8,0.1,0.1" />
+          Proportions: <input type="text" value="0.8,0.1,0.1" readOnly />
         </label>
         <img src={bulb} alt="Logo" />
         <br />
         <label>
           {" "}
           <input name="armed" type="checkbox" /> Multi-Armed Bandit ---> Bandit
-          Parameters: <input type="text" value=" " />
+          Parameters: <input type="text" value=" " readOnly />
         </label>
         <img src={bulb} alt="Logo" />
         <br />
@@ -45,9 +46,9 @@ class DeployOptions extends React.Component {
 class ModelSelector extends React.Component {
   render() {
     return (
-      <p>
-        <b>Select multiple models to deploy... </b>
-        <form onSubmit={this.props.handleSubmit}>
+      <form onSubmit={this.props.handleSubmit}>
+        <p>
+          <b>Select multiple models to deploy... </b>
           <label>
             {" "}
             Avaliable models in repository:{" "}
@@ -64,8 +65,8 @@ class ModelSelector extends React.Component {
             </select>
           </label>
           <input type="submit" value="SUBMIT" />
-        </form>
-      </p>
+        </p>
+      </form>
     );
   }
 }
@@ -73,22 +74,20 @@ class ModelSelector extends React.Component {
 class DatafileSelector extends React.Component {
   render() {
     return (
-      <p>
+      <form>
         <b>Select batch file to start scoring ... </b>
-        <form>
-          <label>
-            {" "}
-            Avaliable batch files in repository:{" "}
-            <select value={this.props.value} onChange={this.props.handleChange}>
-              {this.props.options.map(item => (
-                <option value={item} key={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </label>
-        </form>
-      </p>
+        <label>
+          {" "}
+          Avaliable batch files in repository:{" "}
+          <select value={this.props.value} onChange={this.props.handleChange}>
+            {this.props.options.map(item => (
+              <option value={item} key={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </label>
+      </form>
     );
   }
 }
@@ -96,9 +95,9 @@ class DatafileSelector extends React.Component {
 class Metrics extends React.Component {
   render() {
     return (
-      <p>
-        <b> Sample dataframe, predict and evaluate</b>
-        <form onSubmit={this.props.handleStart}>
+      <div>
+        <form>
+          <b> Sample dataframe, predict and evaluate</b>
           <label>
             {" "}
             Sample period :
@@ -109,40 +108,108 @@ class Metrics extends React.Component {
             />
             seconds
           </label>
+        </form>
+        <form
+          onSubmit={this.props.handleStart}
+          style={{ display: "inline-block" }}
+        >
           <input type="submit" value="Start" />
         </form>
-        <form onSubmit={this.props.handleStop}>
+        <form
+          onSubmit={this.props.handleStop}
+          style={{ display: "inline-block" }}
+        >
           <input type="submit" value="Stop" />
         </form>
-      </p>
+        <div style={{ minHeight: "30px" }} />
+      </div>
     );
   }
 }
 
-class MetricReader extends React.Component {
+class MetricChart extends React.Component {
+  constructor(props) {
+    super(props);
+    this.handleGetMetricData = this.handleGetMetricData.bind(this);
+    this.handleStopMetricData = this.handleStopMetricData.bind(this);
+    this.getMetricData = this.getMetricData.bind(this);
+  }
+  componentDidMount() {
+    var chart = makeLineChart(
+      this.props.xName,
+      this.props.yObjs,
+      this.props.axisLabels
+    );
+    chart.bind("#" + this.props.chart_id);
+    chart.render(this.props.data);
+    this.chart = chart;
+  }
+  handleGetMetricData(event) {
+    event.preventDefault();
+    if (this.getMetricIntervalHandle != null) {
+      clearInterval(this.getMetricIntervalHandle);
+    }
+    this.getMetricData();
+    this.getMetricIntervalHandle = setInterval(
+      this.getMetricData,
+      this.props.metric_sample_period * 1000
+    );
+  }
+
+  handleStopMetricData(event) {
+    event.preventDefault();
+    if (this.getMetricIntervalHandle != null) {
+      clearInterval(this.getMetricIntervalHandle);
+    }
+  }
+
+  getMetricData() {
+    console.log("fetching " + this.props.metric_url);
+    fetch(this.props.metric_url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json"
+      },
+
+      mode: "cors"
+    })
+      .then(response => response.json())
+      .then(data => {
+        var objs = data.hits.hits;
+        objs.sort((a, b) => parseInt(a._id) - parseInt(b._id));
+        const latest = objs;
+        var obj_array = latest
+          .map(s => s._source)
+          .map(s => {
+            return {
+              date: new Date(s.date),
+              auc_rf: +s.auc_rf,
+              auc_mlp: +s.auc_mlp,
+              silhouette: +s.silhouette
+            };
+          });
+        this.setState({ metric_data: obj_array });
+        this.chart.render(obj_array);
+      })
+      .catch(e => console.log(e));
+  }
+
   render() {
     return (
       <div>
-        <form onSubmit={this.props.handleGetMetricData}>
+        <form
+          onSubmit={this.handleGetMetricData}
+          style={{ display: "inline-block" }}
+        >
           <input type="submit" value="GetData" />
         </form>
-        <p> auc_rf, auc_mlp, silhouette_kmeans </p>
-        <LineChart
-          data={this.props.data}
-          datePattern={"%Y-%m-%d %H:%M:%S"}
-          xType={"time"}
-          width={this.props.width}
-          height={this.props.height}
-          axisLabels={{ x: "time" }}
-          yDomainRange={[0, 1]}
-          axes
-          grid
-          style={{
-            ".line0": {
-              stroke: "green"
-            }
-          }}
-        />
+        <form
+          onSubmit={this.handleStopMetricData}
+          style={{ display: "inline-block" }}
+        >
+          <input type="submit" value="StopData" />
+        </form>
+        <div id={this.props.chart_id} className="chart-wrapper" />
       </div>
     );
   }
@@ -152,14 +219,23 @@ class Calculator extends React.Component {
   constructor(props) {
     var SERVER_PORT = 9808;
     super(props);
+    //var nowStr = new Date()
+    //.toISOString()
+    //.replace(/([^T]+)T([^\.]+).*/g, "$1 $2");
+
+    function compareObjs(a, b) {
+      if (a.date < b.date) return -1;
+      else if (a.date > b.date) return 1;
+      else return 0;
+    }
+
     this.state = {
       server: "http://" + window.location.hostname + ":" + SERVER_PORT,
       models: [],
       model_options: [],
       datafile_options: [],
-      datafile: null,
+      datafile: "",
       metric_sample_period: 15,
-      sample_data: [[{ x: 1, y: 1 }, { x: 2, y: 4 }]],
       metric_data: [],
       metric_url:
         "http://" +
@@ -192,8 +268,6 @@ class Calculator extends React.Component {
         });
       })
       .catch(e => console.log(e));
-    this.handleGetMetricData = this.handleGetMetricData.bind(this);
-    this.getMetricData = this.getMetricData.bind(this);
   }
 
   handleModelChange(event) {
@@ -261,48 +335,6 @@ class Calculator extends React.Component {
     event.preventDefault();
   }
 
-  getMetricData() {
-    console.log("fetching " + this.state.metric_url);
-    fetch(this.state.metric_url, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json"
-      },
-
-      mode: "cors"
-    })
-      .then(response => response.json())
-      .then(data => {
-        var objs = data.hits.hits;
-        objs.sort((a, b) => parseInt(a._id) - parseInt(b._id));
-        const source = objs.map(s => s._source);
-        const silhouette = source.map(s => {
-          return { x: s.timestamp, y: s.silhouette };
-        });
-        const auc_rf = source.map(s => {
-          return { x: s.timestamp, y: s.auc_rf };
-        });
-        const auc_mlp = source.map(s => {
-          return { x: s.timestamp, y: s.auc_mlp };
-        });
-        this.setState({ metric_data: [silhouette, auc_rf, auc_mlp] });
-        //console.log([silhouette]);
-      })
-      .catch(e => console.log(e));
-  }
-
-  handleGetMetricData(event) {
-    event.preventDefault();
-    if (this.getMetricIntervalHandle != null) {
-      clearInterval(this.getMetricIntervalHandle);
-    }
-    this.getMetricData();
-    this.getMetricIntervalHandle = setInterval(
-      this.getMetricData,
-      this.state.metric_sample_period * 1000
-    );
-  }
-
   render() {
     return (
       <div>
@@ -326,6 +358,14 @@ class Calculator extends React.Component {
             />
           </li>
 
+          <li>
+            <DatafileSelector
+              value={this.state.datafile}
+              options={this.state.datafile_options}
+              handleChange={x => this.handleFileChange(x)}
+            />
+          </li>
+
           <h5>
             ---- In this demo, we simulate an input data stream by sampling from
             a big dataset ----
@@ -341,11 +381,19 @@ class Calculator extends React.Component {
           </li>
 
           <li>
-            <MetricReader
-              handleGetMetricData={x => this.handleGetMetricData(x)}
+            <MetricChart
+              xName="date"
+              yObjs={{
+                auc_rf: { column: "auc_rf" },
+                auc_mlp: { column: "auc_mlp" },
+                silhouette: { column: "silhouette" }
+              }}
+              axisLabels={{ xAxis: "Date", yAxis: "Normalized" }}
               data={this.state.metric_data}
-              width={700}
-              height={350}
+              chart_id="metricchart"
+              xAxisDateFormatStr="%x %X"
+              metric_url={this.state.metric_url}
+              metric_sample_period={this.state.metric_sample_period}
             />
           </li>
 
@@ -442,8 +490,8 @@ var f1_data = [
     { x: 7, y: 0.63 },
     { x: 8, y: 0.62 },
     { x: 9, y: 0.65 },
-    { x: 10, y: 0.62 },
-    { x: 11, y: 0.63 },
+    { x: 11, y: 0.62 },
+    { x: 12, y: 0.63 },
     { x: 12, y: 0.67 },
     { x: 13, y: 0.63 },
     { x: 14, y: 0.62 },

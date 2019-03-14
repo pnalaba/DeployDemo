@@ -5,6 +5,7 @@
   "dependencies": {
     "axios": "^0.18.0",
     "d3": "^5.9.1",
+    "d3-3": "0.0.0",
     "react": "^16.8.1",
     "react-csv-to-table": "0.0.1",
     "react-dom": "^16.8.1",
