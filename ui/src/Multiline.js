@@ -44,7 +44,7 @@ export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
      *                */
 
     //chartObj.data = dataset;
-    chartObj.margin = { top: 15, right: 60, bottom: 30, left: 50 };
+    chartObj.margin = { top: 15, right: 60, bottom: 120, left: 50 };
     chartObj.width = 650 - chartObj.margin.left - chartObj.margin.right;
     chartObj.height = 480 - chartObj.margin.top - chartObj.margin.bottom;
 
@@ -164,6 +164,7 @@ export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
       .attr("y1", minY);
     focus
       .select(".focus.year")
+      .style("font-weight", "bold")
       .text(xName + ": " + chartObj.xFormatter(chartObj.xFunct(d)));
   }
 
@@ -387,13 +388,20 @@ export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
     }
 
     // Draw Axis
-    xAxisElem
-      .call(chartObj.xAxis)
+    var xAxisElem1 = xAxisElem.call(chartObj.xAxis);
+
+    xAxisElem1
+      .selectAll("text")
+      .attr("transform", "rotate(-65)")
+      .style("text-anchor", "end");
+
+    xAxisElem1
       .append("text")
       .attr("class", "label")
       .attr("x", chartObj.width / 2)
       .attr("y", 30)
       .style("text-anchor", "middle")
+      .style("font-weight", "bold")
       .text(chartObj.xAxisLable);
 
     chartObj.rendered = true;

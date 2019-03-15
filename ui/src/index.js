@@ -8,7 +8,14 @@ import { LineChart } from "react-easy-chart";
 import bulb from "./bulb.png";
 import axios from "axios";
 import { makeLineChart } from "./Multiline.js";
-import { elastic_data } from "./test_data.js";
+import ReactHover from "react-hover";
+import HoverText from "./hovertext.js";
+
+const optionsCursorTrueWithMargin = {
+  followCursor: true,
+  shiftX: 20,
+  shiftY: 0
+};
 
 class DeployOptions extends React.Component {
   render() {
@@ -20,22 +27,70 @@ class DeployOptions extends React.Component {
           Specify Champion:{" "}
           <input type="text" value="ensemblejwb_001" readOnly />
         </label>
-        <img src={bulb} alt="Logo" />
-        <br />
+        <ReactHover
+          options={optionsCursorTrueWithMargin}
+          style={{ display: "inline-block" }}
+        >
+          <ReactHover.Trigger
+            type="trigger"
+            style={{ display: "inline-block" }}
+          >
+            <img src={bulb} alt="Logo" />
+          </ReactHover.Trigger>
+          <ReactHover.Hover type="hover">
+            <div className="hover" style={{ height: "200px" }}>
+              {HoverText["champion_challenger"].map((name, index) => (
+                <p key={index}>{name}</p>
+              ))}
+            </div>
+          </ReactHover.Hover>
+        </ReactHover>
         <label>
           {" "}
           <input name="ab" type="checkbox" /> A/B Testing ---> Specify
           Proportions: <input type="text" value="0.8,0.1,0.1" readOnly />
         </label>
-        <img src={bulb} alt="Logo" />
-        <br />
+        <ReactHover
+          options={optionsCursorTrueWithMargin}
+          style={{ display: "inline-block" }}
+        >
+          <ReactHover.Trigger
+            type="trigger"
+            style={{ display: "inline-block" }}
+          >
+            <img src={bulb} alt="Logo" />
+          </ReactHover.Trigger>
+          <ReactHover.Hover type="hover">
+            <div className="hover">
+              {HoverText["ab_testing"].map((name, index) => (
+                <p key={index}>{name}</p>
+              ))}
+            </div>
+          </ReactHover.Hover>
+        </ReactHover>
         <label>
           {" "}
           <input name="armed" type="checkbox" /> Multi-Armed Bandit ---> Bandit
           Parameters: <input type="text" value=" " readOnly />
         </label>
-        <img src={bulb} alt="Logo" />
-        <br />
+        <ReactHover
+          options={optionsCursorTrueWithMargin}
+          style={{ display: "inline-block" }}
+        >
+          <ReactHover.Trigger
+            type="trigger"
+            style={{ display: "inline-block" }}
+          >
+            <img src={bulb} alt="Logo" />
+          </ReactHover.Trigger>
+          <ReactHover.Hover type="hover">
+            <div className="hover">
+              {HoverText["multiarmed_bandit"].map((name, index) => (
+                <p key={index}>{name}</p>
+              ))}
+            </div>
+          </ReactHover.Hover>
+        </ReactHover>
         <input type="submit" value="SUBMIT" />
       </form>
     );
@@ -121,6 +176,7 @@ class Metrics extends React.Component {
         >
           <input type="submit" value="Stop" />
         </form>
+        <div style={{ minWidth: "50px", display: "inline-block" }} />
         <form
           onSubmit={this.props.handleDelete}
           style={{ display: "inline-block" }}
@@ -243,7 +299,7 @@ class Calculator extends React.Component {
       model_options: [],
       datafile_options: [],
       datafile: "",
-      metric_sample_period: 15,
+      metric_sample_period: 3,
       metric_data: [],
       metric_url:
         "http://" +
