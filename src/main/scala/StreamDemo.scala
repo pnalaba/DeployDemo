@@ -87,8 +87,8 @@ class StreamDemo(args: ArgsConfig) {
   var selected_models : collection.immutable.Map[String,PipelineModel] = null
   var state : Map[String,String] = new HashMap[String,String]()
 
-	val METRICS_INDEX : String = "streamdemo"
-	val METRICS_DOC_TYPE : String = "metric"
+	val METRICS_INDEX : String = "deploydemo"
+	val METRICS_DOC_TYPE : String = "auc"
 
 
 	val context = new StreamdemoContext()
@@ -228,16 +228,19 @@ class StreamDemo(args: ArgsConfig) {
 		val df = total_df.sample(sample_fraction)
 		val pred_rf = model("randomForest").transform(df)
 		val pred_mlp = model("multiLayerPercepteron").transform(df)
+    val pred_lr = model("logisticRegression").transform(df)
 		val pred_kmeans = model("kmeans").transform(df)
 		val auc_rf = evalAUC.evaluate(pred_rf)
 		val auc_mlp = evalAUC.evaluate(pred_mlp)
+    val auc_lr = evalAUC.evaluate(pred_lr)
 		val silhouette = clusteringEvaluator.evaluate(pred_kmeans)
 		val m = new HashMap[String,String]()
-		m.put("auc_rf",auc_rf.toString)
-		m.put("auc_mlp",auc_mlp.toString)
+		m.put("randomForest",auc_rf.toString)
+		m.put("multiLayerPercepteron",auc_mlp.toString)
+		m.put("logisticRegression",auc_lr.toString)
 		m.put("silhouette",silhouette.toString)
 		val indexResponse = send_to_elastic(METRICS_INDEX,METRICS_DOC_TYPE,m)
-		log.info(s"auc_rf $auc_rf auc_mlp $auc_mlp silhouette $silhouette")
+		log.info(s"auc_rf $auc_rf auc_mlp $auc_mlp auc_lr $auc_lr  silhouette $silhouette")
     m.toMap
 	}
 
@@ -429,9 +432,9 @@ class StreamDemo(args: ArgsConfig) {
 
 	if (! elasticClient.indices().exists(getIndexRequest)) {
 	
-		val createIndexRequest = new CreateIndexRequest(METRICS_INDEX).mapping( "metric", """
+		val createIndexRequest = new CreateIndexRequest(METRICS_INDEX).mapping( METRICS_DOC_TYPE, s"""
 		{ 
-		  "metric": {
+		  "$METRICS_DOC_TYPE": {
 				"properties": {
 					"date": {
 						"type":   "date",

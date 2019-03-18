@@ -247,8 +247,9 @@ class MetricChart extends React.Component {
           .map(s => {
             return {
               date: new Date(s.date),
-              auc_rf: +s.auc_rf,
-              auc_mlp: +s.auc_mlp,
+              randomForest: +s.randomForest,
+              logisticRegression: +s.logisticRegression,
+              multiLayerPercepteron: +s.multiLayerPercepteron,
               silhouette: +s.silhouette
             };
           });
@@ -304,7 +305,7 @@ class Calculator extends React.Component {
       metric_url:
         "http://" +
         window.location.hostname +
-        ":9200/streamdemo/_search?size=1000&pretty=true"
+        ":9200/deploydemo/_search?size=1000&pretty=true"
     };
     var classHandle = this;
     axios
@@ -459,9 +460,10 @@ class Calculator extends React.Component {
             <MetricChart
               xName="date"
               yObjs={{
-                auc_rf: { column: "auc_rf" },
-                auc_mlp: { column: "auc_mlp" },
-                silhouette: {
+                randomForest: { column: "randomForest" },
+                neuralNet: { column: "multiLayerPercepteron" },
+                logisticRegression: { column: "logisticRegression" },
+                kmeansSilhouette: {
                   column: "silhouette",
                   linestyle: "dashed"
                 }
