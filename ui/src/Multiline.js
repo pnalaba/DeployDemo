@@ -201,7 +201,17 @@ export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
       .attr("transform", "translate(0," + chartObj.height + ")")
       .call(chartObj.xAxis);
 
+    chartObj.svg
+      .select(".x.axis")
+      .selectAll(".tick > text")
+      .attr("transform", "translate(0," + chartObj.height + ")");
+
     chartObj.svg.select(".x.axis .label").attr("x", chartObj.width / 2);
+
+    chartObj.svg
+      .selectAll(".x > .tick > text")
+      .attr("transform", "rotate(-65)")
+      .style("text-anchor", "end");
 
     chartObj.svg.select(".y.axis").call(chartObj.yAxis);
     chartObj.svg.select(".y.axis .label").attr("x", -chartObj.height / 2);
@@ -344,6 +354,13 @@ export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
       .on("mouseover", mouseover_null_fn)
       .on("mouseout", mouseout_none_fn)
       .on("mousemove", mousemove);
+    //
+    //Create axis
+    chartObj.xAxis = d3.svg
+      .axis()
+      .scale(chartObj.xScale)
+      .orient("bottom")
+      .tickFormat(chartObj.xFormatter); //< Can be overridden in definition
 
     d3.select(window).on("resize." + chartSelector, chartObj.update_svg_size);
 
@@ -355,13 +372,6 @@ export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
     //Create scale functions
     chartObj.data = dataset;
     chartObj.xScale.domain(d3.extent(chartObj.data, chartObj.xFunct)); //< Can be overridden in definition
-
-    //Create axis
-    chartObj.xAxis = d3.svg
-      .axis()
-      .scale(chartObj.xScale)
-      .orient("bottom")
-      .tickFormat(chartObj.xFormatter); //< Can be overridden in definition
 
     // Build line building functions
     for (var yObj in yObjs) {
@@ -391,18 +401,24 @@ export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
     var xAxisElem1 = xAxisElem.call(chartObj.xAxis);
 
     xAxisElem1
-      .selectAll("text")
+      .selectAll(".tick > text")
       .attr("transform", "rotate(-65)")
       .style("text-anchor", "end");
 
-    xAxisElem1
+    chartObj.svg
+      .select(".x.axis")
+      .selectAll(".label")
+      .data(["date"])
+      .enter()
       .append("text")
       .attr("class", "label")
       .attr("x", chartObj.width / 2)
       .attr("y", 30)
       .style("text-anchor", "middle")
       .style("font-weight", "bold")
-      .text(chartObj.xAxisLable);
+      .text(function(d) {
+        return d;
+      });
 
     chartObj.rendered = true;
 

@@ -11,3 +11,11 @@ ul {
 .status {
   margin-bottom: 10px;
 }
+
+.hover {
+  background-color: papayawhip;
+  width: 300px;
+  height: 150px;
+  border-style: dashed;
+  border-color: chocolate;
+}
