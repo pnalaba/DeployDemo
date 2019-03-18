@@ -386,7 +386,7 @@ export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
 
     // Draw Lines
     for (var y in yObjs) {
-      yObjs[y].path
+      yObjs[y].path = yObjs[y].path
         .datum(chartObj.data)
         .attr("class", "line")
         .attr("d", yObjs[y].line)
@@ -395,6 +395,11 @@ export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
         .on("mouseover", mouseover_null_fn)
         .on("mouseout", mouseout_transition_fn)
         .on("mousemove", mousemove);
+      if (yObjs[y].linestyle == "dashed") {
+        for (var key in yObjs[y].linestyle) {
+          yObjs[y].path.style("stroke-dasharray", ("3, 3"));
+        }
+      }
     }
 
     // Draw Axis

@@ -461,7 +461,10 @@ class Calculator extends React.Component {
               yObjs={{
                 auc_rf: { column: "auc_rf" },
                 auc_mlp: { column: "auc_mlp" },
-                silhouette: { column: "silhouette" }
+                silhouette: {
+                  column: "silhouette",
+                  linestyle: "dashed"
+                }
               }}
               axisLabels={{ xAxis: "Date", yAxis: "Normalized" }}
               data={this.state.metric_data}
