@@ -397,7 +397,7 @@ export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
         .on("mousemove", mousemove);
       if (yObjs[y].linestyle == "dashed") {
         for (var key in yObjs[y].linestyle) {
-          yObjs[y].path.style("stroke-dasharray", ("3, 3"));
+          yObjs[y].path.style("stroke-dasharray", "3, 3");
         }
       }
     }
