@@ -3,12 +3,13 @@ import ReactDOM from "react-dom";
 import "./index.css";
 import "./Multiline.css";
 import { LineChart } from "react-easy-chart";
-import axios from "axios";
 //import mlp from "./nnet.png";
 //import rforest from "./randomForest.png";
 import bulb from "./bulb.png";
 import ReactHover from "react-hover";
 import HoverText from "./hovertext.js";
+import ModelSelector from "./ModelSelector.js";
+import Metrics from "./Metrics.js";
 import MetricChart from "./MetricChart.js";
 import { makeLineChart } from "./Multiline.js";
 
@@ -51,35 +52,6 @@ class DeployOptions extends React.Component {
   }
 }
 
-///// Get file input from user
-class ModelSelector extends React.Component {
-  render() {
-    return (
-      <form onSubmit={this.props.handleSubmit}>
-        <p>
-          <b>Select multiple models to deploy... </b>
-          <label>
-            {" "}
-            Avaliable models in repository:{" "}
-            <select
-              multiple={true}
-              value={this.props.value}
-              onChange={this.props.handleChange}
-            >
-              {this.props.options.map(item => (
-                <option value={item} key={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </label>
-          <input type="submit" value="SUBMIT" />
-        </p>
-      </form>
-    );
-  }
-}
-
 class DatafileSelector extends React.Component {
   render() {
     return (
@@ -97,49 +69,6 @@ class DatafileSelector extends React.Component {
           </select>
         </label>
       </form>
-    );
-  }
-}
-
-class Metrics extends React.Component {
-  render() {
-    return (
-      <div>
-        <form>
-          <b> Sample dataframe, predict and evaluate</b>
-          <label>
-            {" "}
-            Sample period :
-            <input
-              type="text"
-              value={this.props.value}
-              onChange={this.props.handleChange}
-            />
-            seconds
-          </label>
-        </form>
-        <form
-          onSubmit={this.props.handleStart}
-          style={{ display: "inline-block" }}
-        >
-          <input type="submit" value="Start" />
-        </form>
-        <form
-          onSubmit={this.props.handleStop}
-          style={{ display: "inline-block" }}
-        >
-          <input type="submit" value="Stop" />
-        </form>
-        <div style={{ minWidth: "50px", display: "inline-block" }} />
-        <form
-          onSubmit={this.props.handleDelete}
-          style={{ display: "inline-block" }}
-        >
-          <input type="submit" value="Delete old metrics" />
-        </form>
-
-        <div style={{ minHeight: "30px" }} />
-      </div>
     );
   }
 }
@@ -177,34 +106,17 @@ class Calculator extends React.Component {
     //.toISOString()
     //.replace(/([^T]+)T([^\.]+).*/g, "$1 $2");
 
-    function compareObjs(a, b) {
-      if (a.date < b.date) return -1;
-      else if (a.date > b.date) return 1;
-      else return 0;
-    }
-
     this.state = {
       server: "http://" + window.location.hostname + ":" + SERVER_PORT,
-      models: [],
-      model_options: [],
       datafile_options: [],
       datafile: "",
       metric_sample_period: 3,
       metric_data: [],
       canary_data: [],
-      metric_url:
-        "http://" +
-        window.location.hostname +
-        ":9200/deploydemo/_search?size=1000&pretty=true"
+      elastic_server: "http://" + window.location.hostname + ":9200"
     };
     this.getMetricCallback = this.getMetricCallback.bind(this);
     var classHandle = this;
-    axios
-      .get(this.state.server + "/models")
-      .then(response => {
-        classHandle.setState({ model_options: response.data });
-      })
-      .catch(e => console.log(e));
     var url = this.state.server + "/dir";
     fetch(url, {
       method: "POST",
@@ -230,22 +142,6 @@ class Calculator extends React.Component {
     this.setState({ canary_data: metric_data });
   }
 
-  handleModelChange(event) {
-    this.setState({
-      models: Array.apply(null, event.target.options)
-        .filter(o => o.selected)
-        .map(o => o.value)
-    });
-  }
-
-  handleModelSubmit(event) {
-    var model_str = this.state.models.join(",");
-    var url = this.state.server + "/selectModels/" + model_str;
-    console.log("calling url : " + url);
-    axios.get(url).catch(e => console.log(e));
-    event.preventDefault();
-  }
-
   handleFileChange(event) {
     this.setState({
       datafile: Array.apply(null, event.target.options)
@@ -259,49 +155,6 @@ class Calculator extends React.Component {
     this.setState({
       metric_sample_period: event.target.value
     });
-    event.preventDefault();
-  }
-
-  handleMetricStart(event) {
-    var url =
-      this.state.server + "/startMetrics/" + this.state.metric_sample_period;
-    var body = JSON.stringify({
-      filepath:
-        "/user/mapr/projects/SparkStreaming/stream_test/" + this.state.datafile,
-      hasHeader: "true",
-      sep: ",",
-      inferSchema: "true"
-    });
-    console.log("In handleMetricStart with url=" + url + "\n body=" + body);
-    fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: body,
-      mode: "cors"
-    })
-      .then(response => response.text())
-      .then(data => console.log("startMetrics: " + data))
-      .catch(e => console.log(e));
-    event.preventDefault();
-  }
-
-  handleMetricStop(event) {
-    var url = this.state.server + "/stopMetrics";
-    //console.log("In handleMetricStop url = " + url);
-    fetch(url)
-      .then(response => response.text())
-      .then(data => console.log("stopMetrics: " + data))
-      .catch(e => console.log(e));
-    event.preventDefault();
-  }
-
-  handleMetricDelete(event) {
-    var url = this.state.server + "/deleteMetrics";
-    console.log("In handleMetricStop url = " + url);
-    fetch(url)
-      .then(response => response.text())
-      .then(data => console.log("deleteMetrics: " + data))
-      .catch(e => console.log(e));
     event.preventDefault();
   }
 
@@ -321,11 +174,7 @@ class Calculator extends React.Component {
         </h4>
         <ol>
           <li>
-            <ModelSelector
-              options={this.state.model_options}
-              handleChange={x => this.handleModelChange(x)}
-              handleSubmit={x => this.handleModelSubmit(x)}
-            />
+            <ModelSelector server={this.state.server} />
           </li>
 
           <li>
@@ -343,11 +192,10 @@ class Calculator extends React.Component {
 
           <li>
             <Metrics
-              value={this.state.metric_sample_period}
+              sample_period={this.state.metric_sample_period}
               handleChange={x => this.handlePeriodChange(x)}
-              handleStart={x => this.handleMetricStart(x)}
-              handleStop={x => this.handleMetricStop(x)}
-              handleDelete={x => this.handleMetricDelete(x)}
+              server={this.state.server}
+              datafile={this.state.datafile}
             />
           </li>
 
@@ -375,19 +223,19 @@ class Calculator extends React.Component {
             <MetricChart
               xName="date"
               yObjs={{
-                randomForest: { column: "randomForest" },
-                neuralNet: { column: "multiLayerPercepteron" },
-                logisticRegression: { column: "logisticRegression" },
                 kmeansSilhouette: {
                   column: "silhouette",
                   linestyle: "dashed"
-                }
+                },
+                randomForest: { column: "randomForest" },
+                neuralNet: { column: "multiLayerPercepteron" },
+                logisticRegression: { column: "logisticRegression" }
               }}
               axisLabels={{ xAxis: "Date", yAxis: "Normalized" }}
               data={this.state.metric_data}
               chart_id="championchart"
               xAxisDateFormatStr="%x %X"
-              metric_url={this.state.metric_url}
+              elastic_server={this.state.elastic_server}
               metric_sample_period={this.state.metric_sample_period}
               getMetricCallback={this.getMetricCallback}
             />
@@ -488,6 +336,7 @@ class Calculator extends React.Component {
   }
 }
 
+/*
 var canary_model_data = [
   [
     { x: 1, y: 1.0 },
@@ -503,7 +352,7 @@ var canary_model_data = [
     { x: 11, y: 1.9 },
     { x: 12, y: 1.7 }
   ]
-];
+]; */
 
 var f1_data = [
   [

@@ -10,6 +10,9 @@ class MetricChart extends React.Component {
     if (this.props.metric_data) {
       this.setState({ metric_data: this.props.metric_data });
     }
+    this.metric_url =
+      this.props.elastic_server +
+      "/deploydemo_champion/_search?size=1000&pretty=true";
   }
   componentDidMount() {
     var chart = makeLineChart(
@@ -43,8 +46,7 @@ class MetricChart extends React.Component {
   }
 
   getMetricData() {
-    //console.log("fetching " + this.props.metric_url);
-    fetch(this.props.metric_url, {
+    fetch(this.metric_url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json"
