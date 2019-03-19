@@ -7,9 +7,10 @@ import { LineChart } from "react-easy-chart";
 //import rforest from "./randomForest.png";
 import bulb from "./bulb.png";
 import axios from "axios";
-import { makeLineChart } from "./Multiline.js";
 import ReactHover from "react-hover";
 import HoverText from "./hovertext.js";
+import MetricChart from "./MetricChart.js";
+import { makeLineChart } from "./Multiline.js";
 
 const optionsCursorTrueWithMargin = {
   followCursor: true,
@@ -190,13 +191,7 @@ class Metrics extends React.Component {
   }
 }
 
-class MetricChart extends React.Component {
-  constructor(props) {
-    super(props);
-    this.handleGetMetricData = this.handleGetMetricData.bind(this);
-    this.handleStopMetricData = this.handleStopMetricData.bind(this);
-    this.getMetricData = this.getMetricData.bind(this);
-  }
+class CanaryChart extends React.Component {
   componentDidMount() {
     var chart = makeLineChart(
       this.props.xName,
@@ -208,72 +203,26 @@ class MetricChart extends React.Component {
     chart.render(this.props.data);
     this.chart = chart;
   }
-  handleGetMetricData(event) {
-    event.preventDefault();
-    if (this.getMetricIntervalHandle != null) {
-      clearInterval(this.getMetricIntervalHandle);
-    }
-    this.getMetricData();
-    this.getMetricIntervalHandle = setInterval(
-      this.getMetricData,
-      this.props.metric_sample_period * 1000
-    );
-  }
 
-  handleStopMetricData(event) {
-    event.preventDefault();
-    if (this.getMetricIntervalHandle != null) {
-      clearInterval(this.getMetricIntervalHandle);
+  componentDidUpdate(prevProps) {
+    if (prevProps.data.length !== this.props.data.length) {
+      console.log("Triggered componentDidUpdate");
+      this.chart.render(this.props.data);
     }
   }
 
-  getMetricData() {
-    console.log("fetching " + this.props.metric_url);
-    fetch(this.props.metric_url, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json"
-      },
+  componentWillReceiveProps(x) {
+    console.log("props received: ", x);
+  }
 
-      mode: "cors"
-    })
-      .then(response => response.json())
-      .then(data => {
-        var objs = data.hits.hits;
-        objs.sort((a, b) => parseInt(a._id) - parseInt(b._id));
-        const latest = objs;
-        var obj_array = latest
-          .map(s => s._source)
-          .map(s => {
-            return {
-              date: new Date(s.date),
-              randomForest: +s.randomForest,
-              logisticRegression: +s.logisticRegression,
-              multiLayerPercepteron: +s.multiLayerPercepteron,
-              silhouette: +s.silhouette
-            };
-          });
-        this.setState({ metric_data: obj_array });
-        this.chart.render(obj_array);
-      })
-      .catch(e => console.log(e));
+  shouldComponentUpdate(nextProps, nextState) {
+    return true;
   }
 
   render() {
+    console.log("Calling CanaryChart.render");
     return (
       <div>
-        <form
-          onSubmit={this.handleGetMetricData}
-          style={{ display: "inline-block" }}
-        >
-          <input type="submit" value="GetData" />
-        </form>
-        <form
-          onSubmit={this.handleStopMetricData}
-          style={{ display: "inline-block" }}
-        >
-          <input type="submit" value="StopData" />
-        </form>
         <div id={this.props.chart_id} className="chart-wrapper" />
       </div>
     );
@@ -496,14 +445,15 @@ class Calculator extends React.Component {
               </b>
               <img src={bulb} alt="Logo" />{" "}
             </p>
-            <LineChart
-              axes
-              axisLabels={{ x: "date", y: "data stability" }}
-              margin={{ top: 10, right: 10, bottom: 50, left: 50 }}
-              width={800}
-              interpolate={"cardinal"}
-              height={350}
-              data={canary_model_data}
+            <CanaryChart
+              xName="date"
+              yObjs={{
+                kmeansSilhouette: { column: "silhouette" }
+              }}
+              axisLabels={{ xAxis: "Date", yAxis: "data stability" }}
+              data={this.state.metric_data}
+              chart_id="canarychart"
+              xAxisDateFormatStr="%x %X"
             />
             <p>
               <b>5. Tracking performance over time with F1 statistic ...</b>
