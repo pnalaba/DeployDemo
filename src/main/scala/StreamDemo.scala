@@ -81,13 +81,14 @@ class StreamDemo(args: ArgsConfig) {
 	var model : Map[String,PipelineModel] = new HashMap[String,PipelineModel]() 
 	var evalAUC : BinaryClassificationEvaluator = null
 	var clusteringEvaluator : ClusteringEvaluator = null
-	var metricGetter : ActorRef = null
+	var metricGetterChampion : ActorRef = null
 	var elasticClient : RestHighLevelClient = null
   var available_models : Array[String] = null
   var selected_models : collection.immutable.Map[String,PipelineModel] = null
   var state : Map[String,String] = new HashMap[String,String]()
 
-	val METRICS_INDEX : String = "deploydemo"
+	val METRICS_INDEX_CHAMPION : String = "deploydemo_champion"
+	val METRICS_INDEX_ABTESTING : String = "deploydemo_abtesting"
 	val METRICS_DOC_TYPE : String = "auc"
 
 
@@ -212,20 +213,17 @@ class StreamDemo(args: ArgsConfig) {
 
 
 
-	def getMetrics(total_df: DataFrame) = {
+	def getMetrics(total_df: DataFrame, strategy: String = "champion") = {
 		val data = Array[Map[String,String]]()
 		for (i <- 0 to 4) {
-			data :+ getMetric(total_df)
+      val df = getSampleDf(total_df) //sample a smaller df to simulate an incoming stream
+      if (strategy == "champion") data :+ getChampionMetric(df) //championMetric calculates metric for all models
+      else if(strategy == "abtesting") data:+ getABMetric(df,Array(ABobj("randomForest",0.9),ABobj("logisticRegression",0.1)))
 		}
 		data
 	}
 
-	def getMetric(total_df: DataFrame) = {
-		val SAMPLE_FRACTION = 0.1
-		val MAX_SAMPLE_SIZE=100
-		val total_df_size = total_df.count()
-		val sample_fraction = scala.math.min(SAMPLE_FRACTION,MAX_SAMPLE_SIZE.toDouble/total_df_size.toDouble)
-		val df = total_df.sample(sample_fraction)
+	def getChampionMetric(df: DataFrame,toElastic: Boolean = false) = {
 		val pred_rf = model("randomForest").transform(df)
 		val pred_mlp = model("multiLayerPercepteron").transform(df)
     val pred_lr = model("logisticRegression").transform(df)
@@ -239,24 +237,74 @@ class StreamDemo(args: ArgsConfig) {
 		m.put("multiLayerPercepteron",auc_mlp.toString)
 		m.put("logisticRegression",auc_lr.toString)
 		m.put("silhouette",silhouette.toString)
-		val indexResponse = send_to_elastic(METRICS_INDEX,METRICS_DOC_TYPE,m)
+		if (toElastic) {
+      val indexResponse = send_to_elastic(METRICS_INDEX_CHAMPION,METRICS_DOC_TYPE,m)
+    }
 		log.info(s"auc_rf $auc_rf auc_mlp $auc_mlp auc_lr $auc_lr  silhouette $silhouette")
     m.toMap
 	}
 
+  case class ABobj ( algo: String , weight: Double )
 
-	class MetricGetter(df : DataFrame, delay: FiniteDuration = 30.second) extends Actor {
+  def getABMetric(df: DataFrame, ab_split:Array[ABobj],m: HashMap[String, String] = new HashMap[String,String](), toElastic: Boolean = false) = {
+    val split_dfs = df.randomSplit(ab_split.map(_.weight))
+    for ( i <- 0 to ab_split.length-1) {
+      val algo = ab_split(i).algo
+      val sub_df = split_dfs(i)
+      val pred = model(algo).transform(sub_df)
+      val auc = evalAUC.evaluate(pred)
+      m.put(algo,auc.toString)
+    }
+    val pred_kmeans = model("kmeans").transform(df)
+		val silhouette = clusteringEvaluator.evaluate(pred_kmeans)
+		m.put("silhouette",silhouette.toString)
+		if (toElastic) { 
+      val indexResponse = send_to_elastic(METRICS_INDEX_ABTESTING,METRICS_DOC_TYPE,m)
+    }
+		log.info(s"ABMetric silhouette $silhouette auc : $m")
+    m.toMap
+	}
+
+  def getSampleDf(total_df: DataFrame) = {
+		val SAMPLE_FRACTION = 0.1
+		val MAX_SAMPLE_SIZE=100
+		val total_df_size = total_df.count()
+		val sample_fraction = scala.math.min(SAMPLE_FRACTION,MAX_SAMPLE_SIZE.toDouble/total_df_size.toDouble)
+		total_df.sample(sample_fraction)
+  }
+
+
+
+
+	class MetricGetterChampion(df : DataFrame, delay: FiniteDuration = 30.second ) extends Actor {
 		var cancellable : akka.actor.Cancellable = null
 		def receive = {
 			case "tick" => 
 				//send another periodic tick after the specified delay
 				cancellable = system.scheduler.scheduleOnce(delay, self, "tick")
 				// do something
-				getMetric(df)
+        val sampled_df = getSampleDf(df) //sample a smaller df to simulate an incoming stream
+				getChampionMetric(sampled_df,true) //calculate metrics and send to elastic
       case "stop" =>
         context stop self
 		}
 	}
+
+
+	class MetricGetterAB(df : DataFrame, delay: FiniteDuration = 30.second, ab_split : Array[ABobj] ) extends Actor {
+		var cancellable : akka.actor.Cancellable = null
+		def receive = {
+			case "tick" => 
+				//send another periodic tick after the specified delay
+				cancellable = system.scheduler.scheduleOnce(delay, self, "tick")
+				// do something
+				getABMetric(df,ab_split,toElastic=true) //calculate metrics and send to elastic
+      case "stop" =>
+        context stop self
+		}
+	}
+
+
 
 	/** returns list of subdirectories in a directory **/
 	def listDirs(dirpath: String): Array[String] = {
@@ -307,17 +355,17 @@ class StreamDemo(args: ArgsConfig) {
 				}
 			}
 		}~
-		path("stopMetrics") {
-			log.info(s"route stopMetrics called")
-			metricGetter ! "stop"
+		path("stopMetricsChampion") {
+			log.info(s"route stopMetricsChampion called")
+			metricGetterChampion ! "stop"
       state -= "metric_state"
-			complete("stopped metricGetter")
+			complete("stopped metricGetterChampion")
 		}~		
-		path("deleteMetrics") {
-			log.info(s"route deleteMetrics called")
+		path("deleteMetricsChampion") {
+			log.info(s"route deleteMetricsChampion called")
       val result:Future[String] = Future[String] {
         try {
-        elastic_delete_docs_from_index(METRICS_INDEX,METRICS_DOC_TYPE);
+        elastic_delete_docs_from_index(METRICS_INDEX_CHAMPION,METRICS_DOC_TYPE);
         } catch {
           case x:IOException  => "Got an IOException"
         }
@@ -371,19 +419,19 @@ class StreamDemo(args: ArgsConfig) {
 					}// end of function with arg filePath
 				} //end of entity(as[DfLoadReq])...
 			}~		
-      path("startMetrics" /IntNumber ) { seconds =>
+      path("startMetricsChampion" /IntNumber ) { seconds =>
 				entity(as[DfLoadReq]) { obj => {
-						log.info(s"route startMetrics called with sampling period =$seconds")
+						log.info(s"route startMetricsChampion called with sampling period =$seconds")
         		implicit val timeout = Timeout(60 seconds)
 						val df = loadDataframe(obj)
-						if (metricGetter != null ) {
-							metricGetter ! "stop"
+						if (metricGetterChampion != null ) {
+							metricGetterChampion ! "stop"
 						}
-						metricGetter = system.actorOf(Props(new MetricGetter(df, Duration(seconds,"seconds"))), name="metricGetter")
-						metricGetter ! "tick"
+						metricGetterChampion = system.actorOf(Props(new MetricGetterChampion(df, Duration(seconds,"seconds"))), name="metricGetterChampion")
+						metricGetterChampion ! "tick"
             state.put("metric_state","sampling")
             state.put("sampling_period", seconds.toString) //set class member
-						complete("started metricGetter")
+						complete(s"started metricGetterChampion with sampling period=$seconds seconds")
 					}// end of function with arg filePath
 				} //end of entity(as[DfLoadReq])...
 			}~		
@@ -393,7 +441,7 @@ class StreamDemo(args: ArgsConfig) {
         		implicit val timeout = Timeout(60 seconds)
 						val result: Future[collection.immutable.Map[String,String]] = Future[collection.immutable.Map[String,String]] {
 							val df = loadDataframe(obj)
-							val metric = getMetric(df)
+							val metric = getChampionMetric(df)
 							metric
 						}
 						onComplete(result) { 
@@ -420,31 +468,29 @@ class StreamDemo(args: ArgsConfig) {
 
 	/** setup elasticsearch client **/
 	elasticClient = new RestHighLevelClient(
-		/*
-		RestClient.builder(new HttpHost("10.20.30.66",9200, "http"),
-		 	new HttpHost("10.20.30.67",9200,"http"),
-		 	new HttpHost("10.20.30.68",9200,"http") )
-			*/
 		RestClient.builder(new HttpHost("10.20.30.66",9200, "http"))
 	)
 	import org.elasticsearch.action.admin.indices.get.GetIndexRequest
-	val getIndexRequest = new GetIndexRequest().indices(METRICS_INDEX)  
 
-	if (! elasticClient.indices().exists(getIndexRequest)) {
-	
-		val createIndexRequest = new CreateIndexRequest(METRICS_INDEX).mapping( METRICS_DOC_TYPE, s"""
-		{ 
-		  "$METRICS_DOC_TYPE": {
-				"properties": {
-					"date": {
-						"type":   "date",
-						"format": "yyyy-MM-dd HH:mm:ss"
-					}
-				}
-			}
-		} """,XContentType.JSON)
-		elasticClient.indices().create(createIndexRequest)
-	}
+  //for all indices create mapping to specify a date field - grafana needs one
+  val indices = Array(METRICS_INDEX_CHAMPION, METRICS_INDEX_ABTESTING)
+  indices.foreach( index => {
+    val getIndexRequest = new GetIndexRequest().indices(index)  
+    if (! elasticClient.indices().exists(getIndexRequest)) {
+    	val createIndexRequest = new CreateIndexRequest(index).mapping( METRICS_DOC_TYPE, s"""
+    	{ 
+    	  "$METRICS_DOC_TYPE": {
+    			"properties": {
+    				"date": {
+    					"type":   "date",
+    					"format": "yyyy-MM-dd HH:mm:ss"
+    				}
+    			}
+    		}
+    	} """,XContentType.JSON)
+    	elasticClient.indices().create(createIndexRequest)
+    }
+  })
 
 
 
