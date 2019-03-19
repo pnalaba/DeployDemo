@@ -223,7 +223,6 @@ class Calculator extends React.Component {
     var classHandle = this;
     axios
       .get(this.state.server + "/models")
-      //fetch(this.state.server + "/models")
       .then(response => {
         classHandle.setState({ model_options: response.data });
       })
