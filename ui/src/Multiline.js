@@ -15,11 +15,6 @@ export class Multiline extends Component {
     this.chart = chart;
   }
 
-  redraw(data) {
-    console.log("redraw :" + data);
-    //this.chart.render(data);
-  }
-
   render() {
     return <div id={this.props.chart_id} className="chart-wrapper" />;
   }
@@ -242,6 +237,7 @@ export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
   };
 
   chartObj.bind = function(selector) {
+    chartObj.selector = selector;
     chartObj.mainDiv = d3.select(selector);
     // Add all the divs to make it centered and responsive
     chartObj.mainDiv
@@ -257,9 +253,6 @@ export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
     chartObj.update_svg_size();
     //Create SVG element
     var size_obj = { width: chartObj.width, height: chartObj.height };
-    console.log(
-      "after update_svg_size chartObj size : " + JSON.stringify(size_obj)
-    );
     chartObj.svg = chartObj.chartDiv
       .append("svg")
       .attr("class", "chart-area")

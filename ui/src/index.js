@@ -24,29 +24,6 @@ class DeployOptions extends React.Component {
       <form>
         <label>
           {" "}
-          <input name="ab" type="checkbox" /> A/B Testing ---> Specify
-          Proportions: <input type="text" value="0.8,0.1,0.1" readOnly />
-        </label>
-        <ReactHover
-          options={optionsCursorTrueWithMargin}
-          style={{ display: "inline-block" }}
-        >
-          <ReactHover.Trigger
-            type="trigger"
-            style={{ display: "inline-block" }}
-          >
-            <img src={bulb} alt="Logo" />
-          </ReactHover.Trigger>
-          <ReactHover.Hover type="hover">
-            <div className="hover">
-              {HoverText["ab_testing"].map((name, index) => (
-                <p key={index}>{name}</p>
-              ))}
-            </div>
-          </ReactHover.Hover>
-        </ReactHover>
-        <label>
-          {" "}
           <input name="armed" type="checkbox" /> Multi-Armed Bandit ---> Bandit
           Parameters: <input type="text" value=" " readOnly />
         </label>
@@ -177,6 +154,7 @@ class CanaryChart extends React.Component {
     );
     chart.bind("#" + this.props.chart_id);
     this.chart = chart;
+    window.setTimeout(chart.update_svg_size, 1);
   }
 
   render() {
@@ -407,7 +385,7 @@ class Calculator extends React.Component {
               }}
               axisLabels={{ xAxis: "Date", yAxis: "Normalized" }}
               data={this.state.metric_data}
-              chart_id="metricchart"
+              chart_id="championchart"
               xAxisDateFormatStr="%x %X"
               metric_url={this.state.metric_url}
               metric_sample_period={this.state.metric_sample_period}
@@ -432,6 +410,51 @@ class Calculator extends React.Component {
               data={this.state.canary_data}
               chart_id="canarychart"
               xAxisDateFormatStr="%x %X"
+            />
+          </li>
+
+          <li>
+            <label>
+              A/B Testing Deployment mode Proportions:{" "}
+              <input type="text" value="0.8,0.1,0.1" readOnly />
+            </label>
+            <ReactHover
+              options={optionsCursorTrueWithMargin}
+              style={{ display: "inline-block" }}
+            >
+              <ReactHover.Trigger
+                type="trigger"
+                style={{ display: "inline-block" }}
+              >
+                <img src={bulb} alt="Logo" />
+              </ReactHover.Trigger>
+              <ReactHover.Hover type="hover">
+                <div className="hover">
+                  {HoverText["ab_testing"].map((name, index) => (
+                    <p key={index}>{name}</p>
+                  ))}
+                </div>
+              </ReactHover.Hover>
+            </ReactHover>
+
+            <MetricChart
+              xName="date"
+              yObjs={{
+                randomForest: { column: "randomForest" },
+                neuralNet: { column: "multiLayerPercepteron" },
+                logisticRegression: { column: "logisticRegression" },
+                kmeansSilhouette: {
+                  column: "silhouette",
+                  linestyle: "dashed"
+                }
+              }}
+              axisLabels={{ xAxis: "Date", yAxis: "Normalized" }}
+              data={this.state.metric_data}
+              chart_id="abchart"
+              xAxisDateFormatStr="%x %X"
+              metric_url={this.state.metric_url}
+              metric_sample_period={this.state.metric_sample_period}
+              getMetricCallback={this.getMetricCallback}
             />
           </li>
 
