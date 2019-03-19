@@ -9,6 +9,7 @@ class ModelSelector extends React.Component {
       model_options: []
     };
 
+    this.handleModelSubmit = this.handleModelSubmit.bind(this);
     var classHandle = this;
     axios
       .get(this.props.server + "/models")
@@ -27,11 +28,10 @@ class ModelSelector extends React.Component {
   }
 
   handleModelSubmit(event) {
+    event.preventDefault();
     var model_str = this.state.models.join(",");
     var url = this.props.server + "/selectModels/" + model_str;
-    console.log("calling url : " + url);
     axios.get(url).catch(e => console.log(e));
-    event.preventDefault();
   }
 
   render() {
