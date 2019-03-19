@@ -252,7 +252,7 @@ export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
 
     chartObj.update_svg_size();
     //Create SVG element
-    var size_obj = { width: chartObj.width, height: chartObj.height };
+    //var size_obj = { width: chartObj.width, height: chartObj.height };
     chartObj.svg = chartObj.chartDiv
       .append("svg")
       .attr("class", "chart-area")
@@ -370,7 +370,7 @@ export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
     for (var yObj in yObjs) {
       yObjs[yObj].line = d3.svg
         .line()
-        .interpolate("cardinal")
+        //.interpolate("cardinal")
         .x(function(d) {
           return chartObj.xScale(chartObj.xFunct(d));
         })
@@ -389,11 +389,9 @@ export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
         .on("mouseout", mouseout_transition_fn)
         .on("mousemove", mousemove);
       if (yObjs[y].linestyle === "dashed") {
-        for (var key in yObjs[y].linestyle) {
-          yObjs[y].path
-            .style("stroke-dasharray", "1, 1")
-            .style("stroke-width", "2px");
-        }
+        yObjs[y].path
+          .style("stroke-dasharray", "1, 1")
+          .style("stroke-width", "2px");
       }
     }
 
