@@ -71,7 +71,7 @@ class MetricChart extends React.Component {
         //this.chart.render(obj_array);
         //if a callback function was provided, call it
         if (this.props.getMetricCallback) {
-          this.getMetricCallback(this.state.metric_data);
+          this.props.getMetricCallback(this.state.metric_data);
         }
       })
       .catch(e => console.log(e));

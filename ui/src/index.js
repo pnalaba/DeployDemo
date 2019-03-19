@@ -3,10 +3,10 @@ import ReactDOM from "react-dom";
 import "./index.css";
 import "./Multiline.css";
 import { LineChart } from "react-easy-chart";
+import axios from "axios";
 //import mlp from "./nnet.png";
 //import rforest from "./randomForest.png";
 import bulb from "./bulb.png";
-import axios from "axios";
 import ReactHover from "react-hover";
 import HoverText from "./hovertext.js";
 import MetricChart from "./MetricChart.js";
@@ -22,30 +22,6 @@ class DeployOptions extends React.Component {
   render() {
     return (
       <form>
-        <label>
-          {" "}
-          <input name="champ" type="checkbox" /> Champion/Challenger --->
-          Specify Champion:{" "}
-          <input type="text" value="ensemblejwb_001" readOnly />
-        </label>
-        <ReactHover
-          options={optionsCursorTrueWithMargin}
-          style={{ display: "inline-block" }}
-        >
-          <ReactHover.Trigger
-            type="trigger"
-            style={{ display: "inline-block" }}
-          >
-            <img src={bulb} alt="Logo" />
-          </ReactHover.Trigger>
-          <ReactHover.Hover type="hover">
-            <div className="hover" style={{ height: "200px" }}>
-              {HoverText["champion_challenger"].map((name, index) => (
-                <p key={index}>{name}</p>
-              ))}
-            </div>
-          </ReactHover.Hover>
-        </ReactHover>
         <label>
           {" "}
           <input name="ab" type="checkbox" /> A/B Testing ---> Specify
@@ -200,27 +176,13 @@ class CanaryChart extends React.Component {
       this.props.xAxisDateFormatStr
     );
     chart.bind("#" + this.props.chart_id);
-    chart.render(this.props.data);
     this.chart = chart;
   }
 
-  componentDidUpdate(prevProps) {
-    if (prevProps.data.length !== this.props.data.length) {
-      console.log("Triggered componentDidUpdate");
+  render() {
+    if (this.chart) {
       this.chart.render(this.props.data);
     }
-  }
-
-  componentWillReceiveProps(x) {
-    console.log("props received: ", x);
-  }
-
-  shouldComponentUpdate(nextProps, nextState) {
-    return true;
-  }
-
-  render() {
-    console.log("Calling CanaryChart.render");
     return (
       <div>
         <div id={this.props.chart_id} className="chart-wrapper" />
@@ -251,14 +213,17 @@ class Calculator extends React.Component {
       datafile: "",
       metric_sample_period: 3,
       metric_data: [],
+      canary_data: [],
       metric_url:
         "http://" +
         window.location.hostname +
         ":9200/deploydemo/_search?size=1000&pretty=true"
     };
+    this.getMetricCallback = this.getMetricCallback.bind(this);
     var classHandle = this;
     axios
       .get(this.state.server + "/models")
+      //fetch(this.state.server + "/models")
       .then(response => {
         classHandle.setState({ model_options: response.data });
       })
@@ -282,6 +247,10 @@ class Calculator extends React.Component {
         });
       })
       .catch(e => console.log(e));
+  }
+
+  getMetricCallback(metric_data) {
+    this.setState({ canary_data: metric_data });
   }
 
   handleModelChange(event) {
@@ -406,6 +375,26 @@ class Calculator extends React.Component {
           </li>
 
           <li>
+            <label>Champion/Challenger Deployment Mode </label>
+            <ReactHover
+              options={optionsCursorTrueWithMargin}
+              style={{ display: "inline-block" }}
+            >
+              <ReactHover.Trigger
+                type="trigger"
+                style={{ display: "inline-block" }}
+              >
+                <img src={bulb} alt="Logo" />
+              </ReactHover.Trigger>
+              <ReactHover.Hover type="hover">
+                <div className="hover" style={{ height: "200px" }}>
+                  {HoverText["champion_challenger"].map((name, index) => (
+                    <p key={index}>{name}</p>
+                  ))}
+                </div>
+              </ReactHover.Hover>
+            </ReactHover>
+
             <MetricChart
               xName="date"
               yObjs={{
@@ -423,19 +412,9 @@ class Calculator extends React.Component {
               xAxisDateFormatStr="%x %X"
               metric_url={this.state.metric_url}
               metric_sample_period={this.state.metric_sample_period}
+              getMetricCallback={this.getMetricCallback}
             />
           </li>
-
-          <li>
-            <p>
-              <b> Select one deployment option... </b>
-            </p>
-            <DeployOptions />
-            <h2>Deploying the solution ... </h2>
-            <br />
-          </li>
-
-          <li />
 
           <li>
             <p>
@@ -451,10 +430,22 @@ class Calculator extends React.Component {
                 kmeansSilhouette: { column: "silhouette" }
               }}
               axisLabels={{ xAxis: "Date", yAxis: "data stability" }}
-              data={this.state.metric_data}
+              data={this.state.canary_data}
               chart_id="canarychart"
               xAxisDateFormatStr="%x %X"
             />
+          </li>
+
+          <li>
+            <p>
+              <b> Select one deployment option... </b>
+            </p>
+            <DeployOptions />
+            <h2>Deploying the solution ... </h2>
+            <br />
+          </li>
+
+          <li>
             <p>
               <b>5. Tracking performance over time with F1 statistic ...</b>
               <img src={bulb} alt="Logo" />{" "}
