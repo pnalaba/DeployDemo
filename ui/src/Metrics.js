@@ -13,8 +13,7 @@ class Metrics extends React.Component {
     var url =
       this.props.server + "/startMetricsChampion/" + this.props.sample_period;
     var body = JSON.stringify({
-      filepath:
-        "/user/mapr/projects/SparkStreaming/stream_test/" + this.props.datafile,
+      filepath: this.props.data_dir + this.props.datafile,
       hasHeader: "true",
       sep: ",",
       inferSchema: "true"

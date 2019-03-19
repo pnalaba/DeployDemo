@@ -105,13 +105,16 @@ class Calculator extends React.Component {
     //var nowStr = new Date()
     //.toISOString()
     //.replace(/([^T]+)T([^\.]+).*/g, "$1 $2");
+    //
+    this.data_dir =
+      "/mapr/my.cluster.com/user/mapr/projects/SparkStreaming/stream_test/";
 
     this.state = {
       server: "http://" + window.location.hostname + ":" + SERVER_PORT,
       datafile_options: [],
       datafile: "",
       metric_sample_period: 3,
-      metric_data: [],
+      champion_metric_data: [],
       canary_data: [],
       elastic_server: "http://" + window.location.hostname + ":9200"
     };
@@ -123,8 +126,7 @@ class Calculator extends React.Component {
       headers: {
         "Content-Type": "application/json"
       },
-      body:
-        "/mapr/my.cluster.com/user/mapr/projects/SparkStreaming/stream_test",
+      body: this.data_dir,
       mode: "cors"
     })
       .then(response => response.text())
@@ -138,8 +140,8 @@ class Calculator extends React.Component {
       .catch(e => console.log(e));
   }
 
-  getMetricCallback(metric_data) {
-    this.setState({ canary_data: metric_data });
+  getMetricCallback(champion_metric_data) {
+    this.setState({ canary_data: champion_metric_data });
   }
 
   handleFileChange(event) {
@@ -196,6 +198,7 @@ class Calculator extends React.Component {
               handleChange={x => this.handlePeriodChange(x)}
               server={this.state.server}
               datafile={this.state.datafile}
+              data_dir={this.data_dir}
             />
           </li>
 
@@ -232,10 +235,11 @@ class Calculator extends React.Component {
                 logisticRegression: { column: "logisticRegression" }
               }}
               axisLabels={{ xAxis: "Date", yAxis: "Normalized" }}
-              data={this.state.metric_data}
+              data={this.state.champion_metric_data}
               chart_id="championchart"
               xAxisDateFormatStr="%x %X"
               elastic_server={this.state.elastic_server}
+              elastic_index="deploydemo_champion"
               metric_sample_period={this.state.metric_sample_period}
               getMetricCallback={this.getMetricCallback}
             />
@@ -297,7 +301,7 @@ class Calculator extends React.Component {
                 }
               }}
               axisLabels={{ xAxis: "Date", yAxis: "Normalized" }}
-              data={this.state.metric_data}
+              data={this.state.champion_metric_data}
               chart_id="abchart"
               xAxisDateFormatStr="%x %X"
               metric_url={this.state.metric_url}

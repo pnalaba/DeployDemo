@@ -12,7 +12,9 @@ class MetricChart extends React.Component {
     }
     this.metric_url =
       this.props.elastic_server +
-      "/deploydemo_champion/_search?size=1000&pretty=true";
+      "/" +
+      this.props.elastic_index +
+      "/_search?size=1000&pretty=true";
   }
   componentDidMount() {
     var chart = makeLineChart(
