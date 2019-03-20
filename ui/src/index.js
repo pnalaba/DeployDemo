@@ -29,24 +29,26 @@ class DeployOptions extends React.Component {
           <input name="armed" type="checkbox" /> Multi-Armed Bandit ---> Bandit
           Parameters: <input type="text" value=" " readOnly />
         </label>
-        <ReactHover
-          options={optionsCursorTrueWithMargin}
-          style={{ display: "inline-block" }}
-        >
-          <ReactHover.Trigger
-            type="trigger"
+        <div style={{ display: "inline-flex" }}>
+          <ReactHover
+            options={optionsCursorTrueWithMargin}
             style={{ display: "inline-block" }}
           >
-            <img src={bulb} alt="Logo" />
-          </ReactHover.Trigger>
-          <ReactHover.Hover type="hover">
-            <div className="hover">
-              {HoverText["multiarmed_bandit"].map((name, index) => (
-                <p key={index}>{name}</p>
-              ))}
-            </div>
-          </ReactHover.Hover>
-        </ReactHover>
+            <ReactHover.Trigger
+              type="trigger"
+              style={{ display: "inline-block" }}
+            >
+              <img src={bulb} alt="Logo" />
+            </ReactHover.Trigger>
+            <ReactHover.Hover type="hover">
+              <div className="hover">
+                {HoverText["multiarmed_bandit"].map((name, index) => (
+                  <p key={index}>{name}</p>
+                ))}
+              </div>
+            </ReactHover.Hover>
+          </ReactHover>
+        </div>
         <input type="submit" value="SUBMIT" />
       </form>
     );
@@ -209,24 +211,26 @@ class Calculator extends React.Component {
 
           <li>
             <label>Champion/Challenger Deployment Mode </label>
-            <ReactHover
-              options={optionsCursorTrueWithMargin}
-              style={{ display: "inline-block" }}
-            >
-              <ReactHover.Trigger
-                type="trigger"
+            <div style={{ display: "inline-flex" }}>
+              <ReactHover
+                options={optionsCursorTrueWithMargin}
                 style={{ display: "inline-block" }}
               >
-                <img src={bulb} alt="Logo" />
-              </ReactHover.Trigger>
-              <ReactHover.Hover type="hover">
-                <div className="hover" style={{ height: "200px" }}>
-                  {HoverText["champion_challenger"].map((name, index) => (
-                    <p key={index}>{name}</p>
-                  ))}
-                </div>
-              </ReactHover.Hover>
-            </ReactHover>
+                <ReactHover.Trigger
+                  type="trigger"
+                  style={{ display: "inline-block" }}
+                >
+                  <img src={bulb} alt="Logo" />
+                </ReactHover.Trigger>
+                <ReactHover.Hover type="hover">
+                  <div className="hover" style={{ height: "200px" }}>
+                    {HoverText["champion_challenger"].map((name, index) => (
+                      <p key={index}>{name}</p>
+                    ))}
+                  </div>
+                </ReactHover.Hover>
+              </ReactHover>
+            </div>
 
             <MetricChart
               xName="date"
@@ -272,24 +276,26 @@ class Calculator extends React.Component {
 
           <li>
             <label>A/B Testing Deployment mode</label>
-            <ReactHover
-              options={optionsCursorTrueWithMargin}
-              style={{ display: "inline-block" }}
-            >
-              <ReactHover.Trigger
-                type="trigger"
+            <div style={{ display: "inline-flex" }}>
+              <ReactHover
+                options={optionsCursorTrueWithMargin}
                 style={{ display: "inline-block" }}
               >
-                <img src={bulb} alt="Logo" />
-              </ReactHover.Trigger>
-              <ReactHover.Hover type="hover">
-                <div className="hover">
-                  {HoverText["ab_testing"].map((name, index) => (
-                    <p key={index}>{name}</p>
-                  ))}
-                </div>
-              </ReactHover.Hover>
-            </ReactHover>
+                <ReactHover.Trigger
+                  type="trigger"
+                  style={{ display: "inline-block" }}
+                >
+                  <img src={bulb} alt="Logo" />
+                </ReactHover.Trigger>
+                <ReactHover.Hover type="hover">
+                  <div className="hover">
+                    {HoverText["ab_testing"].map((name, index) => (
+                      <p key={index}>{name}</p>
+                    ))}
+                  </div>
+                </ReactHover.Hover>
+              </ReactHover>
+            </div>
 
             <MetricsAB
               sample_period={this.state.metric_sample_period}
@@ -320,15 +326,6 @@ class Calculator extends React.Component {
               elastic_index="deploydemo_abtesting"
               metric_sample_period={this.state.metric_sample_period}
             />
-          </li>
-
-          <li>
-            <p>
-              <b> Select one deployment option... </b>
-            </p>
-            <DeployOptions />
-            <h2>Deploying the solution ... </h2>
-            <br />
           </li>
 
           <li>
