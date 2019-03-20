@@ -78,7 +78,7 @@ class StreamDemo(args: ArgsConfig) {
 	var spark : SparkSession = null 
 	var sc : SparkContext = null
 	var df : DataFrame = null
-	var load_info_df : DfLoadReq = null
+	var load_info_df : Map[String,String] = null
 	var model : Map[String,PipelineModel] = new HashMap[String,PipelineModel]() 
 	var evalAUC : BinaryClassificationEvaluator = null
 	var clusteringEvaluator : ClusteringEvaluator = null
@@ -136,6 +136,7 @@ class StreamDemo(args: ArgsConfig) {
 		val sep: String = ",",
 		val inferSchema: String = "false")
 
+  val DfLoad_DEFAULTS = Map("hasHeader" ->"true", "sep" -> ",", "inferSchema" -> "true")
 
 
 
@@ -175,21 +176,21 @@ class StreamDemo(args: ArgsConfig) {
 
 
 	/** Function - given filename etc, returns a persisted dataframe**/
-	def loadDataframe(req: DfLoadReq) : DataFrame = {
-		if (df != null && load_info_df != null && load_info_df== req)  { 
+	def loadDataframe(req : Map[String,String]) : DataFrame = {
+		if (df != null && load_info_df != null && (load_info_df.toSet diff req.toSet).size == 0 )  { 
 			return df
 		}
-		val df_ = spark.read.format("csv")
-		.option("header", req.hasHeader)
-		.option("sep",req.sep)
-		.option("inferSchema",req.inferSchema)
-		.load(req.filepath)
+    //log.info(s"In loadDataframe filepath=${req("filepath")} type=${req("filepath").getClass}\n")
+		df = spark.read.format("csv")
+		.option("header", req("hasHeader"))
+		.option("sep",req("sep"))
+		.option("inferSchema",req("inferSchema"))
+		.load(req("filepath"))
 
 
-		df_.persist() //cache the dataframe
-		df = df_ //set class member
+		df.persist() //cache the dataframe
 		load_info_df = req
-		return df_
+		return df
 	}
 
 	def send_to_elastic(index:String, doctype:String, m: Map[String, String]) : IndexResponse =  { 
@@ -470,12 +471,13 @@ class StreamDemo(args: ArgsConfig) {
         }
 	    }~
 			path("countlines") {
-				entity(as[DfLoadReq]) { obj => {
-						log.info(s"route counlines called")
+				entity(as[JsObject]) { obj => {
+						log.info(s"route counlines called with type of req=${obj.fields}\n")
+            val reqMap = DfLoad_DEFAULTS ++ obj.fields.map({ case (k,v) => (k,v.toString.replace("\"",""))})
         		implicit val timeout = Timeout(30 seconds)
 						val count: Future[String] = Future[String] {
 							if (sc != null) {
-								val df = loadDataframe(obj)
+								val df = loadDataframe(reqMap)
 								val linecount = df.count()
 								s"linecount = $linecount"
 							} else
@@ -490,10 +492,11 @@ class StreamDemo(args: ArgsConfig) {
 				} //end of entity(as[DfLoadReq])...
 			}~		
       path("startMetricsChampion" /IntNumber ) { seconds =>
-				entity(as[DfLoadReq]) { obj => {
-						log.info(s"route startMetricsChampion called with sampling period =$seconds")
+				entity(as[JsObject]) { obj => {
+						log.info(s"route startMetricsChampion called with sampling period =$seconds req=${obj.fields}")
         		implicit val timeout = Timeout(60 seconds)
-						val df = loadDataframe(obj)
+            val reqMap = DfLoad_DEFAULTS ++ obj.fields.map({ case (k,v) => (k,v.toString.replace("\"",""))})
+						val df = loadDataframe(reqMap)
 						if (metricGetterChampion != null ) {
 							metricGetterChampion ! "stop"
 						}
@@ -506,11 +509,12 @@ class StreamDemo(args: ArgsConfig) {
 				} //end of entity(as[DfLoadReq])...
 			}~		
       (path("startMetricsAB" /IntNumber ) & parameters("split".as(CsvSeq[Double])) & parameters("algos".as(CsvSeq[String])) ) { (seconds , split, algos) => 
-        entity(as[DfLoadReq]) { obj => {
+				entity(as[JsObject]) { obj => {
             val ab_split = (algos zip split).map({case (a,w) => ABobj(a,w)}).toArray
-				    log.info(s"route startMetricsAB called with seconds=$seconds ab_split=${ab_split.mkString(", ")}\n")
+				    log.info(s"route startMetricsAB called with seconds=$seconds ab_split=${ab_split.mkString(", ")} req=${obj.fields}\n")
         		implicit val timeout = Timeout(60 seconds)
-						val df = loadDataframe(obj)
+            val reqMap = DfLoad_DEFAULTS ++ obj.fields.map({ case (k,v) => (k,v.toString.replace("\"",""))})
+						val df = loadDataframe(reqMap)
 						if (metricGetterAB != null ) {
 							metricGetterAB ! "stop"
 						}
@@ -524,11 +528,12 @@ class StreamDemo(args: ArgsConfig) {
         }
 			}~		
       (path("startMetricsMultiArm" /IntNumber ) & parameters("split".as(CsvSeq[Double])) & parameters("algos".as(CsvSeq[String])) ) { (seconds , split, algos) => 
-        entity(as[DfLoadReq]) { obj => {
+				entity(as[JsObject]) { obj => {
             val ab_split = (algos zip split).map({case (a,w) => ABobj(a,w)}).toArray
-				    log.info(s"route startMetricsAB called with seconds=$seconds ab_split=${ab_split.mkString(", ")}\n")
+				    log.info(s"route startMetricsAB called with seconds=$seconds ab_split=${ab_split.mkString(", ")} req=${obj.fields}\n")
         		implicit val timeout = Timeout(60 seconds)
-						val df = loadDataframe(obj)
+            val reqMap = DfLoad_DEFAULTS ++ obj.fields.map({ case (k,v) => (k,v.toString.replace("\"",""))})
+						val df = loadDataframe(reqMap)
 						if (metricGetterMultiArm != null ) {
 							metricGetterMultiArm ! "stop"
 						}
@@ -542,11 +547,12 @@ class StreamDemo(args: ArgsConfig) {
         }
 			}~		
 			path("getMetric") {
-				entity(as[DfLoadReq]) { obj => {
-						log.info(s"route getMetric called")
+				entity(as[JsObject]) { obj => {
+						log.info(s"route getMetric called with req=${obj.fields}")
         		implicit val timeout = Timeout(60 seconds)
 						val result: Future[collection.immutable.Map[String,String]] = Future[collection.immutable.Map[String,String]] {
-							val df = loadDataframe(obj)
+              val reqMap = DfLoad_DEFAULTS ++ obj.fields.map({ case (k,v) => (k,v.toString.replace("\"",""))})
+							val df = loadDataframe(reqMap)
 							val metric = getChampionMetric(df)
 							metric
 						}
