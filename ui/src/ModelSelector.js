@@ -54,7 +54,6 @@ class ModelSelector extends React.Component {
               ))}
             </select>
           </label>
-          <input type="submit" value="SUBMIT" />
         </p>
       </form>
     );

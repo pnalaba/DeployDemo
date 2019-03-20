@@ -25,7 +25,7 @@ class MetricChart extends React.Component {
     );
     chart.bind("#" + this.props.chart_id);
     this.chart = chart;
-    window.setTimeout(chart.update_svg_size, 1);
+    window.setTimeout(chart.update_svg_size, 1000);
   }
 
   handleGetMetricData(event) {

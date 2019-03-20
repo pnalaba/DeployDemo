@@ -10,6 +10,7 @@ import ReactHover from "react-hover";
 import HoverText from "./hovertext.js";
 import ModelSelector from "./ModelSelector.js";
 import Metrics from "./Metrics.js";
+import MetricsAB from "./MetricsAB.js";
 import MetricChart from "./MetricChart.js";
 import { makeLineChart } from "./Multiline.js";
 
@@ -83,7 +84,7 @@ class CanaryChart extends React.Component {
     );
     chart.bind("#" + this.props.chart_id);
     this.chart = chart;
-    window.setTimeout(chart.update_svg_size, 1);
+    window.setTimeout(chart.update_svg_size, 1000);
   }
 
   render() {
@@ -199,6 +200,10 @@ class Calculator extends React.Component {
               server={this.state.server}
               datafile={this.state.datafile}
               data_dir={this.data_dir}
+              start_route="startMetricsChampion"
+              stop_route="stopMetricsChampion"
+              delete_route="deleteMetricsChampion"
+              name="MetricsChampion"
             />
           </li>
 
@@ -266,10 +271,7 @@ class Calculator extends React.Component {
           </li>
 
           <li>
-            <label>
-              A/B Testing Deployment mode Proportions:{" "}
-              <input type="text" value="0.8,0.1,0.1" readOnly />
-            </label>
+            <label>A/B Testing Deployment mode</label>
             <ReactHover
               options={optionsCursorTrueWithMargin}
               style={{ display: "inline-block" }}
@@ -289,24 +291,34 @@ class Calculator extends React.Component {
               </ReactHover.Hover>
             </ReactHover>
 
+            <MetricsAB
+              sample_period={this.state.metric_sample_period}
+              server={this.state.server}
+              datafile={this.state.datafile}
+              data_dir={this.data_dir}
+              start_route="startMetricsAB"
+              stop_route="stopMetricsAB"
+              delete_route="deleteMetricsAB"
+              name="metricsAB"
+            />
             <MetricChart
               xName="date"
               yObjs={{
-                randomForest: { column: "randomForest" },
-                neuralNet: { column: "multiLayerPercepteron" },
-                logisticRegression: { column: "logisticRegression" },
                 kmeansSilhouette: {
                   column: "silhouette",
                   linestyle: "dashed"
-                }
+                },
+                randomForest: { column: "randomForest" },
+                neuralNet: { column: "multiLayerPercepteron" },
+                logisticRegression: { column: "logisticRegression" }
               }}
               axisLabels={{ xAxis: "Date", yAxis: "Normalized" }}
               data={this.state.champion_metric_data}
               chart_id="abchart"
               xAxisDateFormatStr="%x %X"
-              metric_url={this.state.metric_url}
+              elastic_server={this.state.elastic_server}
+              elastic_index="deploydemo_abtesting"
               metric_sample_period={this.state.metric_sample_period}
-              getMetricCallback={this.getMetricCallback}
             />
           </li>
 

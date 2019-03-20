@@ -1,21 +1,43 @@
 import React from "react";
+import axios from "axios";
 
-class Metrics extends React.Component {
+class MetricsAB extends React.Component {
   constructor(props) {
     super(props);
     this.handleMetricStart = this.handleMetricStart.bind(this);
     this.handleMetricStop = this.handleMetricStop.bind(this);
     this.handleMetricDelete = this.handleMetricDelete.bind(this);
+    this.handleWeightChange = this.handleWeightChange.bind(this);
+    this.state = {
+      models: [],
+      weights: [0]
+    };
+    var classHandle = this;
+    axios
+      .get(this.props.server + "/models")
+      .then(response => {
+        var models = response.data.filter(model => model !== "kmeans");
+        classHandle.setState({ models: models });
+        classHandle.setState({ weights: new Array(models.length).fill(0) });
+      })
+      .catch(e => console.log(e));
   }
 
   handleMetricStart(event) {
     event.preventDefault();
+    if (this.state.weights.reduce((a, b) => a + b) <= 0) return;
     var url =
       this.props.server +
       "/" +
       this.props.start_route +
       "/" +
-      this.props.sample_period;
+      this.props.sample_period +
+      "?" +
+      "split=" +
+      this.state.weights.join() +
+      "&" +
+      "algos=" +
+      this.state.models.join();
     var body = JSON.stringify({
       filepath: this.props.data_dir + this.props.datafile,
       hasHeader: "true",
@@ -30,7 +52,7 @@ class Metrics extends React.Component {
       mode: "cors"
     })
       .then(response => response.text())
-      .then(data => console.log("startMetrics: " + data))
+      .then(data => console.log(this.props.name + " : startMetrics: " + data))
       .catch(e => console.log(e));
   }
 
@@ -40,13 +62,13 @@ class Metrics extends React.Component {
     //console.log("In handleMetricStop url = " + url);
     fetch(url)
       .then(response => response.text())
-      .then(data => console.log("stopMetrics: " + data))
+      .then(data => console.log(this.props.name + " : stopMetrics: " + data))
       .catch(e => console.log(e));
   }
 
   handleMetricDelete(event) {
-    var url = this.props.server + "/deleteMetricsChampion";
-    console.log("In handleMetricDelete url = " + url);
+    var url = this.props.server + "/" + this.props.delete_route;
+    console.log(this.props.name + " : handleMetricDelete url = " + url);
     fetch(url)
       .then(response => response.text())
       .then(data => console.log("deleteMetrics: " + data))
@@ -54,22 +76,42 @@ class Metrics extends React.Component {
     event.preventDefault();
   }
 
+  handleWeightChange(i) {
+    var className = this;
+    return function(event) {
+      var weights = className.state.weights.slice();
+      weights[i] = event.target.value;
+      className.setState({ weights: weights });
+    };
+  }
+
   render() {
     return (
       <div>
         <form>
-          <b> Sample dataframe, predict and evaluate</b>
-          <label>
-            {" "}
-            Sample period :
-            <input
-              type="text"
-              value={this.props.sample_period}
-              onChange={this.props.handleChange}
-            />
-            seconds
-          </label>
+          <b> Select models and weights</b>
+          <table>
+            <tbody>
+              {this.state.models.map((m, i) => (
+                <tr key={m}>
+                  <td key={m + "-name"}>
+                    <label key={m}>{m} </label>
+                  </td>
+                  <td key={m + "-input"}>
+                    <input
+                      key={m}
+                      type="text"
+                      i={i}
+                      value={this.state.weights[i]}
+                      onChange={this.handleWeightChange(i)}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </form>
+
         <form
           onSubmit={this.handleMetricStart}
           style={{ display: "inline-block" }}
@@ -96,4 +138,4 @@ class Metrics extends React.Component {
   }
 }
 
-export default Metrics;
+export default MetricsAB;
