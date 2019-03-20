@@ -16,6 +16,7 @@ import scala.util.{Random,Success,Failure}
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+import akka.http.scaladsl.unmarshalling.PredefinedFromStringUnmarshallers.CsvSeq
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
@@ -82,6 +83,7 @@ class StreamDemo(args: ArgsConfig) {
 	var evalAUC : BinaryClassificationEvaluator = null
 	var clusteringEvaluator : ClusteringEvaluator = null
 	var metricGetterChampion : ActorRef = null
+	var metricGetterAB : ActorRef = null
 	var elasticClient : RestHighLevelClient = null
   var available_models : Array[String] = null
   var selected_models : collection.immutable.Map[String,PipelineModel] = null
@@ -298,7 +300,8 @@ class StreamDemo(args: ArgsConfig) {
 				//send another periodic tick after the specified delay
 				cancellable = system.scheduler.scheduleOnce(delay, self, "tick")
 				// do something
-				getABMetric(df,ab_split,toElastic=true) //calculate metrics and send to elastic
+        val sampled_df = getSampleDf(df) //sample a smaller df to simulate an incoming stream
+				getABMetric(sampled_df,ab_split,toElastic=true) //calculate metrics and send to elastic
       case "stop" =>
         context stop self
 		}
@@ -358,14 +361,33 @@ class StreamDemo(args: ArgsConfig) {
 		path("stopMetricsChampion") {
 			log.info(s"route stopMetricsChampion called")
 			metricGetterChampion ! "stop"
-      state -= "metric_state"
+      state -= "champion_state"
 			complete("stopped metricGetterChampion")
+		}~		
+		path("stopMetricsAB") {
+			log.info(s"route stopMetricsAB called")
+			metricGetterAB ! "stop"
+      state -= "metric_state"
+			complete("stopped metricGetterAB")
 		}~		
 		path("deleteMetricsChampion") {
 			log.info(s"route deleteMetricsChampion called")
       val result:Future[String] = Future[String] {
         try {
         elastic_delete_docs_from_index(METRICS_INDEX_CHAMPION,METRICS_DOC_TYPE);
+        } catch {
+          case x:IOException  => "Got an IOException"
+        }
+      }
+      onComplete(result) { value => 
+			  complete(s"ret: $value\n")
+      }
+		}~		
+		path("deleteMetricsAB") {
+			log.info(s"route deleteMetricsAB called")
+      val result:Future[String] = Future[String] {
+        try {
+        elastic_delete_docs_from_index(METRICS_INDEX_ABTESTING,METRICS_DOC_TYPE);
         } catch {
           case x:IOException  => "Got an IOException"
         }
@@ -429,11 +451,29 @@ class StreamDemo(args: ArgsConfig) {
 						}
 						metricGetterChampion = system.actorOf(Props(new MetricGetterChampion(df, Duration(seconds,"seconds"))), name="metricGetterChampion")
 						metricGetterChampion ! "tick"
-            state.put("metric_state","sampling")
-            state.put("sampling_period", seconds.toString) //set class member
+            state.put("champion_state","sampling")
+            state.put("champion_sampling_period", seconds.toString) //set class member
 						complete(s"started metricGetterChampion with sampling period=$seconds seconds")
 					}// end of function with arg filePath
 				} //end of entity(as[DfLoadReq])...
+			}~		
+      (path("startMetricsAB" /IntNumber ) & parameters("split".as(CsvSeq[Double])) & parameters("algos".as(CsvSeq[String])) ) { (seconds , split, algos) => 
+        entity(as[DfLoadReq]) { obj => {
+            val ab_split = (algos zip split).map({case (a,w) => ABobj(a,w)}).toArray
+				    log.info(s"route startMetricsAB called with seconds=$seconds ab_split=${ab_split.mkString(", ")}\n")
+        		implicit val timeout = Timeout(60 seconds)
+						val df = loadDataframe(obj)
+						if (metricGetterAB != null ) {
+							metricGetterAB ! "stop"
+						}
+						metricGetterAB = system.actorOf(Props(new MetricGetterAB(df, Duration(seconds,"seconds"),ab_split)), name="metricGetterAB")
+						metricGetterAB ! "tick"
+            state.put("ab_state","sampling")
+            state.put("ab_sampling_period", seconds.toString) //set class member
+
+				    complete(s"route startMetricsAB called with seconds=$seconds ab_split=${ab_split.mkString(", ")}\n")
+          }
+        }
 			}~		
 			path("getMetric") {
 				entity(as[DfLoadReq]) { obj => {
