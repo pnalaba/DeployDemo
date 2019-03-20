@@ -84,6 +84,7 @@ class StreamDemo(args: ArgsConfig) {
 	var clusteringEvaluator : ClusteringEvaluator = null
 	var metricGetterChampion : ActorRef = null
 	var metricGetterAB : ActorRef = null
+	var metricGetterMultiArm : ActorRef = null
 	var elasticClient : RestHighLevelClient = null
   var available_models : Array[String] = null
   var selected_models : collection.immutable.Map[String,PipelineModel] = null
@@ -91,6 +92,7 @@ class StreamDemo(args: ArgsConfig) {
 
 	val METRICS_INDEX_CHAMPION : String = "deploydemo_champion"
 	val METRICS_INDEX_ABTESTING : String = "deploydemo_abtesting"
+	val METRICS_INDEX_MULTIARM : String = "deploydemo_multiarm"
 	val METRICS_DOC_TYPE : String = "auc"
 
 
@@ -267,6 +269,26 @@ class StreamDemo(args: ArgsConfig) {
     m.toMap
 	}
 
+
+  def getMultiArmMetric(df: DataFrame, ab_split:Array[ABobj],m: HashMap[String, String] = new HashMap[String,String](), toElastic: Boolean = false) = {
+    val split_dfs = df.randomSplit(ab_split.map(_.weight))
+    for ( i <- 0 to ab_split.length-1) {
+      val algo = ab_split(i).algo
+      val sub_df = split_dfs(i)
+      val pred = model(algo).transform(sub_df)
+      val auc = evalAUC.evaluate(pred)
+      m.put(algo,auc.toString)
+    }
+    val pred_kmeans = model("kmeans").transform(df)
+		val silhouette = clusteringEvaluator.evaluate(pred_kmeans)
+		m.put("silhouette",silhouette.toString)
+		if (toElastic) { 
+      val indexResponse = send_to_elastic(METRICS_INDEX_MULTIARM,METRICS_DOC_TYPE,m)
+    }
+		log.info(s"ABMetric silhouette $silhouette auc : $m")
+    m.toMap
+	}
+
   def getSampleDf(total_df: DataFrame) = {
 		val SAMPLE_FRACTION = 0.1
 		val MAX_SAMPLE_SIZE=100
@@ -308,6 +330,19 @@ class StreamDemo(args: ArgsConfig) {
 	}
 
 
+	class MetricGetterMultiArm(df : DataFrame, delay: FiniteDuration = 30.second, ab_split : Array[ABobj] ) extends Actor {
+		var cancellable : akka.actor.Cancellable = null
+		def receive = {
+			case "tick" => 
+				//send another periodic tick after the specified delay
+				cancellable = system.scheduler.scheduleOnce(delay, self, "tick")
+				// do something
+        val sampled_df = getSampleDf(df) //sample a smaller df to simulate an incoming stream
+				getMultiArmMetric(sampled_df,ab_split,toElastic=true) //calculate metrics and send to elastic
+      case "stop" =>
+        context stop self
+		}
+	}
 
 	/** returns list of subdirectories in a directory **/
 	def listDirs(dirpath: String): Array[String] = {
@@ -396,6 +431,19 @@ class StreamDemo(args: ArgsConfig) {
 			  complete(s"ret: $value\n")
       }
 		}~		
+		path("deleteMetricsMultiArm") {
+			log.info(s"route deleteMetricsMultiArm called")
+      val result:Future[String] = Future[String] {
+        try {
+        elastic_delete_docs_from_index(METRICS_INDEX_MULTIARM,METRICS_DOC_TYPE);
+        } catch {
+          case x:IOException  => "Got an IOException"
+        }
+      }
+      onComplete(result) { value => 
+			  complete(s"ret: $value\n")
+      }
+		}~		
     path("models") {
       complete(available_models)
     }~
@@ -475,6 +523,24 @@ class StreamDemo(args: ArgsConfig) {
           }
         }
 			}~		
+      (path("startMetricsMultiArm" /IntNumber ) & parameters("split".as(CsvSeq[Double])) & parameters("algos".as(CsvSeq[String])) ) { (seconds , split, algos) => 
+        entity(as[DfLoadReq]) { obj => {
+            val ab_split = (algos zip split).map({case (a,w) => ABobj(a,w)}).toArray
+				    log.info(s"route startMetricsAB called with seconds=$seconds ab_split=${ab_split.mkString(", ")}\n")
+        		implicit val timeout = Timeout(60 seconds)
+						val df = loadDataframe(obj)
+						if (metricGetterMultiArm != null ) {
+							metricGetterMultiArm ! "stop"
+						}
+						metricGetterMultiArm = system.actorOf(Props(new MetricGetterMultiArm(df, Duration(seconds,"seconds"),ab_split)), name="metricGetterMultiArm")
+						metricGetterMultiArm ! "tick"
+            state.put("ab_state","sampling")
+            state.put("ab_sampling_period", seconds.toString) //set class member
+
+				    complete(s"route startMetricsAB called with seconds=$seconds ab_split=${ab_split.mkString(", ")}\n")
+          }
+        }
+			}~		
 			path("getMetric") {
 				entity(as[DfLoadReq]) { obj => {
 						log.info(s"route getMetric called")
@@ -513,7 +579,7 @@ class StreamDemo(args: ArgsConfig) {
 	import org.elasticsearch.action.admin.indices.get.GetIndexRequest
 
   //for all indices create mapping to specify a date field - grafana needs one
-  val indices = Array(METRICS_INDEX_CHAMPION, METRICS_INDEX_ABTESTING)
+  val indices = Array(METRICS_INDEX_CHAMPION, METRICS_INDEX_ABTESTING, METRICS_INDEX_MULTIARM)
   indices.foreach( index => {
     val getIndexRequest = new GetIndexRequest().indices(index)  
     if (! elasticClient.indices().exists(getIndexRequest)) {
