@@ -1,4 +1,4 @@
-package streamdemo
+package deploydemo
 
 import java.io.File
 import java.io.IOException
@@ -44,7 +44,7 @@ import spray.json.DefaultJsonProtocol._
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.log4j.Level
 import org.apache.log4j.Logger
-import streamdemo._
+import deploydemo._
 
 
 //imports for elasticsearch REST Api
@@ -61,16 +61,16 @@ import org.elasticsearch.common.xcontent.{XContentType,XContentBuilder,XContentF
 
 
 
-object StreamDemo {
-	def apply(args: ArgsConfig) : StreamDemo = new StreamDemo(args)
+object DeployDemo {
+	def apply(args: ArgsConfig) : DeployDemo = new DeployDemo(args)
 }
 
-class StreamDemo(args: ArgsConfig) {
-	implicit val system = ActorSystem("streamdemo")
+class DeployDemo(args: ArgsConfig) {
+	implicit val system = ActorSystem("deploydemo")
 	implicit val materializer = ActorMaterializer()
 	implicit val executionContext = system.dispatcher
 
-	val log = Logger.getRootLogger()
+	val log = Logger.getRootLogger("deploydemo")
 	log.setLevel(Level.INFO)
 
 
@@ -636,4 +636,4 @@ class StreamDemo(args: ArgsConfig) {
 	Await.result(f,Duration.Inf) 
 
 
-} // StreamDemoService
+} //class DeployDemo

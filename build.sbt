@@ -13,7 +13,7 @@ lazy val root = (project in file(".")).
     version := "0.1",
     organization := "",
     scalaVersion := "2.11.8",
-    name := "streamdemo",
+    name := "deploydemo",
     resolvers ++= Seq(
       "MapR Repository" at "http://repository.mapr.com/maven/",
       "Spray Repository" at "http://repo.spray.io",
@@ -35,8 +35,8 @@ lazy val root = (project in file(".")).
         "org.slf4j" % "slf4j-api" % "1.7.25",
         "com.typesafe.akka" %% "akka-slf4j" % "2.5.16",
     ),
-    mainClass in(Compile, run) := Some("streamdemo.Boot"),
-    mainClass in(Compile, packageBin) := Some("streamdemo.Boot"),
+    mainClass in(Compile, run) := Some("deploydemo.Boot"),
+    mainClass in(Compile, packageBin) := Some("deploydemo.Boot"),
     dependencyOverrides ++= Seq(
     )
   )

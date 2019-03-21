@@ -1,4 +1,4 @@
-package streamdemo
+package deploydemo
 
 import java.lang.Exception
 
@@ -24,8 +24,8 @@ object Boot {
     Logger.getLogger("org").setLevel(level)
     Logger.getLogger("akka").setLevel(level)
 
-    val parser = new scopt.OptionParser[ArgsConfig]("streamdemo") {
-      head("streamdemo", "1.0")
+    val parser = new scopt.OptionParser[ArgsConfig]("deploydemo") {
+      head("deploydemo", "1.0")
 
       opt[Int]('p', "port").action( (x,c) =>
         c.copy(port = x) ).text("port")
@@ -45,7 +45,7 @@ object Boot {
     }
 
     parser.parse(args, ArgsConfig()) match {
-      case Some(config) => val service = StreamDemo(config)
+      case Some(config) => val service = DeployDemo(config)
       case None => println("error parsing input parameters")
     }
 
