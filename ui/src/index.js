@@ -86,7 +86,7 @@ class SimpleChart extends React.Component {
     );
     chart.bind("#" + this.props.chart_id);
     this.chart = chart;
-    window.setTimeout(chart.update_svg_size, 1000);
+    window.setTimeout(chart.update_svg_size, 3000);
   }
 
   render() {
@@ -383,98 +383,10 @@ class Calculator extends React.Component {
               xAxisDateFormatStr="%x %X"
             />
           </li>
-
-          <li>
-            <p>
-              <b>5. Tracking performance over time with F1 statistic ...</b>
-              <img src={bulb} alt="Logo" />{" "}
-            </p>
-            <LineChart
-              axes
-              axisLabels={{ x: "date", y: "data stability" }}
-              margin={{ top: 10, right: 10, bottom: 50, left: 50 }}
-              width={800}
-              interpolate={"cardinal"}
-              height={350}
-              data={f1_data}
-            />
-          </li>
         </ol>
       </div>
     );
   }
 }
-
-/*
-var canary_model_data = [
-  [
-    { x: 1, y: 1.0 },
-    { x: 2, y: 1.1 },
-    { x: 3, y: 0.8 },
-    { x: 4, y: 1.5 },
-    { x: 5, y: 1.4 },
-    { x: 6, y: 1.1 },
-    { x: 7, y: 1.3 },
-    { x: 8, y: 1.5 },
-    { x: 9, y: 1.7 },
-    { x: 10, y: 1.7 },
-    { x: 11, y: 1.9 },
-    { x: 12, y: 1.7 }
-  ]
-]; */
-
-var f1_data = [
-  [
-    { x: 1, y: 0.6 },
-    { x: 2, y: 0.62 },
-    { x: 3, y: 0.63 },
-    { x: 4, y: 0.61 },
-    { x: 5, y: 0.68 },
-    { x: 6, y: 0.58 },
-    { x: 7, y: 0.44 },
-    { x: 8, y: 0.56 },
-    { x: 9, y: 0.66 },
-    { x: 10, y: 0.65 },
-    { x: 11, y: 0.68 },
-    { x: 12, y: 0.62 },
-    { x: 13, y: 0.65 },
-    { x: 14, y: 0.68 },
-    { x: 15, y: 0.65 }
-  ],
-  [
-    { x: 1, y: 0.6 },
-    { x: 2, y: 0.61 },
-    { x: 3, y: 0.63 },
-    { x: 4, y: 0.64 },
-    { x: 5, y: 0.65 },
-    { x: 6, y: 0.64 },
-    { x: 7, y: 0.63 },
-    { x: 8, y: 0.62 },
-    { x: 9, y: 0.65 },
-    { x: 11, y: 0.62 },
-    { x: 12, y: 0.63 },
-    { x: 12, y: 0.67 },
-    { x: 13, y: 0.63 },
-    { x: 14, y: 0.62 },
-    { x: 15, y: 0.61 }
-  ],
-  [
-    { x: 1, y: 0.55 },
-    { x: 2, y: 0.52 },
-    { x: 3, y: 0.49 },
-    { x: 4, y: 0.54 },
-    { x: 5, y: 0.56 },
-    { x: 6, y: 0.57 },
-    { x: 7, y: 0.52 },
-    { x: 8, y: 0.54 },
-    { x: 9, y: 0.55 },
-    { x: 10, y: 0.58 },
-    { x: 11, y: 0.61 },
-    { x: 12, y: 0.62 },
-    { x: 13, y: 0.63 },
-    { x: 14, y: 0.63 },
-    { x: 15, y: 0.65 }
-  ]
-];
 
 ReactDOM.render(<Calculator />, document.getElementById("root"));
