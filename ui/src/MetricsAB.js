@@ -18,7 +18,11 @@ class MetricsAB extends React.Component {
       .then(response => {
         var models = response.data.filter(model => model !== "kmeans");
         classHandle.setState({ models: models });
-        classHandle.setState({ weights: new Array(models.length).fill(0) });
+        classHandle.setState({
+          weights: new Array(models.length).fill(
+            Number(1.0 / models.length).toFixed(2)
+          )
+        });
       })
       .catch(e => console.log(e));
   }
