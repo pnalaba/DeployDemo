@@ -70,7 +70,7 @@ class DeployDemo(args: ArgsConfig) {
 	implicit val materializer = ActorMaterializer()
 	implicit val executionContext = system.dispatcher
 
-	val log = Logger.getRootLogger("deploydemo")
+	val log = Logger.getLogger("deploydemo")
 	log.setLevel(Level.INFO)
 
 
