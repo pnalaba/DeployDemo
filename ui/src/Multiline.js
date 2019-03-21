@@ -295,7 +295,8 @@ export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
       .attr("x", -chartObj.height / 2)
       .attr("dy", ".71em")
       .style("text-anchor", "middle")
-      .text(chartObj.yAxisLable);
+      .text(chartObj.yAxisLable)
+      .style("font-weight", "bold");
     //
     // Year label
     focus
