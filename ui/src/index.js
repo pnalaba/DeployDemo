@@ -243,7 +243,7 @@ class Calculator extends React.Component {
                 neuralNet: { column: "multiLayerPercepteron" },
                 logisticRegression: { column: "logisticRegression" }
               }}
-              axisLabels={{ xAxis: "Date", yAxis: "Normalized" }}
+              axisLabels={{ xAxis: "Date", yAxis: "AUC" }}
               data={this.state.champion_metric_data}
               chart_id="championchart"
               xAxisDateFormatStr="%x %X"
@@ -312,7 +312,7 @@ class Calculator extends React.Component {
                 neuralNet: { column: "multiLayerPercepteron" },
                 logisticRegression: { column: "logisticRegression" }
               }}
-              axisLabels={{ xAxis: "Date", yAxis: "Normalized" }}
+              axisLabels={{ xAxis: "Date", yAxis: "AUC" }}
               data={this.state.champion_metric_data}
               chart_id="chartAB"
               xAxisDateFormatStr="%x %X"
@@ -360,7 +360,7 @@ class Calculator extends React.Component {
                 neuralNet: { column: "multiLayerPercepteron" },
                 logisticRegression: { column: "logisticRegression" }
               }}
-              axisLabels={{ xAxis: "Date", yAxis: "Normalized" }}
+              axisLabels={{ xAxis: "Date", yAxis: "AUC" }}
               data={this.state.champion_metric_data}
               chart_id="chartMultiArm"
               xAxisDateFormatStr="%x %X"
