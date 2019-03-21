@@ -76,7 +76,7 @@ class DatafileSelector extends React.Component {
   }
 }
 
-class CanaryChart extends React.Component {
+class SimpleChart extends React.Component {
   componentDidMount() {
     var chart = makeLineChart(
       this.props.xName,
@@ -119,9 +119,11 @@ class Calculator extends React.Component {
       metric_sample_period: 3,
       champion_metric_data: [],
       canary_data: [],
+      multiarm_data: [],
       elastic_server: "http://" + window.location.hostname + ":9200"
     };
     this.getMetricCallback = this.getMetricCallback.bind(this);
+    this.getMetricMultiArmCallback = this.getMetricMultiArmCallback.bind(this);
     var classHandle = this;
     var url = this.state.server + "/dir";
     fetch(url, {
@@ -145,6 +147,10 @@ class Calculator extends React.Component {
 
   getMetricCallback(champion_metric_data) {
     this.setState({ canary_data: champion_metric_data });
+  }
+
+  getMetricMultiArmCallback(multiarm_data) {
+    this.setState({ multiarm_data: multiarm_data });
   }
 
   handleFileChange(event) {
@@ -212,14 +218,8 @@ class Calculator extends React.Component {
           <li>
             <label>Champion/Challenger Deployment Mode </label>
             <div style={{ display: "inline-flex" }}>
-              <ReactHover
-                options={optionsCursorTrueWithMargin}
-                style={{ display: "inline-block" }}
-              >
-                <ReactHover.Trigger
-                  type="trigger"
-                  style={{ display: "inline-block" }}
-                >
+              <ReactHover options={optionsCursorTrueWithMargin}>
+                <ReactHover.Trigger type="trigger">
                   <img src={bulb} alt="Logo" />
                 </ReactHover.Trigger>
                 <ReactHover.Hover type="hover">
@@ -262,7 +262,7 @@ class Calculator extends React.Component {
               </b>
               <img src={bulb} alt="Logo" />{" "}
             </p>
-            <CanaryChart
+            <SimpleChart
               xName="date"
               yObjs={{
                 kmeansSilhouette: { column: "silhouette" }
@@ -277,14 +277,8 @@ class Calculator extends React.Component {
           <li>
             <label>A/B Testing Deployment mode</label>
             <div style={{ display: "inline-flex" }}>
-              <ReactHover
-                options={optionsCursorTrueWithMargin}
-                style={{ display: "inline-block" }}
-              >
-                <ReactHover.Trigger
-                  type="trigger"
-                  style={{ display: "inline-block" }}
-                >
+              <ReactHover options={optionsCursorTrueWithMargin}>
+                <ReactHover.Trigger type="trigger">
                   <img src={bulb} alt="Logo" />
                 </ReactHover.Trigger>
                 <ReactHover.Hover type="hover">
@@ -320,11 +314,73 @@ class Calculator extends React.Component {
               }}
               axisLabels={{ xAxis: "Date", yAxis: "Normalized" }}
               data={this.state.champion_metric_data}
-              chart_id="abchart"
+              chart_id="chartAB"
               xAxisDateFormatStr="%x %X"
               elastic_server={this.state.elastic_server}
               elastic_index="deploydemo_abtesting"
               metric_sample_period={this.state.metric_sample_period}
+            />
+          </li>
+
+          <li>
+            <label>MultiArm Bandit Deployment mode</label>
+            <div style={{ display: "inline-flex" }}>
+              <ReactHover options={optionsCursorTrueWithMargin}>
+                <ReactHover.Trigger type="trigger">
+                  <img src={bulb} alt="Logo" />
+                </ReactHover.Trigger>
+                <ReactHover.Hover type="hover">
+                  <div className="hover">
+                    {HoverText["multiarmed_bandit"].map((name, index) => (
+                      <p key={index}>{name}</p>
+                    ))}
+                  </div>
+                </ReactHover.Hover>
+              </ReactHover>
+            </div>
+
+            <MetricsAB
+              sample_period={this.state.metric_sample_period}
+              server={this.state.server}
+              datafile={this.state.datafile}
+              data_dir={this.data_dir}
+              start_route="startMetricsMultiArm"
+              stop_route="stopMetricsMultiArm"
+              delete_route="deleteMetricsMultiArm"
+              name="metricsMultiArm"
+            />
+            <MetricChart
+              xName="date"
+              yObjs={{
+                kmeansSilhouette: {
+                  column: "silhouette",
+                  linestyle: "dashed"
+                },
+                randomForest: { column: "randomForest" },
+                neuralNet: { column: "multiLayerPercepteron" },
+                logisticRegression: { column: "logisticRegression" }
+              }}
+              axisLabels={{ xAxis: "Date", yAxis: "Normalized" }}
+              data={this.state.champion_metric_data}
+              chart_id="chartMultiArm"
+              xAxisDateFormatStr="%x %X"
+              elastic_server={this.state.elastic_server}
+              elastic_index="deploydemo_multiarm"
+              metric_sample_period={this.state.metric_sample_period}
+              getMetricCallback={this.getMetricMultiArmCallback}
+            />
+            <SimpleChart
+              xName="date"
+              yObjs={{
+                kmeansSilhouette: { column: "silhouette", linestyle: "dashed" },
+                randomForest: { column: "randomForest_split" },
+                neuralNet: { column: "multiLayerPercepteron_split" },
+                logisticRegresison: { column: "logisticRegression_split" }
+              }}
+              axisLabels={{ xAxis: "Date", yAxis: "split" }}
+              data={this.state.multiarm_data}
+              chart_id="multiarm_splits_chart"
+              xAxisDateFormatStr="%x %X"
             />
           </li>
 

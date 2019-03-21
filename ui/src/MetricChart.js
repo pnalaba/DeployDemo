@@ -64,13 +64,17 @@ class MetricChart extends React.Component {
         var obj_array = latest
           .map(s => s._source)
           .map(s => {
-            return {
-              date: new Date(s.date),
-              randomForest: +s.randomForest,
-              logisticRegression: +s.logisticRegression,
-              multiLayerPercepteron: +s.multiLayerPercepteron,
-              silhouette: +s.silhouette
-            };
+            var new_obj = {};
+            const entries = Object.entries(s);
+            for (const [key, value] of entries) {
+              if (key === "date") {
+                new_obj[key] = new Date(value);
+              } else {
+                //convert strings to numbers
+                new_obj[key] = +value;
+              }
+            }
+            return new_obj;
           });
         this.setState({ metric_data: obj_array });
         //this.chart.render(obj_array);
