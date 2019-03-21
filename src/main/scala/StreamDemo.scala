@@ -193,7 +193,7 @@ class StreamDemo(args: ArgsConfig) {
 		return df
 	}
 
-	def send_to_elastic(index:String, doctype:String, m: Map[String, String]) : IndexResponse =  { 
+	def send_to_elastic(index:String, doctype:String, m: Map[String, Double]) : IndexResponse =  { 
 		val timestamp = System.currentTimeMillis/1000
 		val format = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
 		val builder = XContentFactory.jsonBuilder()
@@ -237,62 +237,63 @@ class StreamDemo(args: ArgsConfig) {
 		val auc_mlp = evalAUC.evaluate(pred_mlp)
     val auc_lr = evalAUC.evaluate(pred_lr)
 		val silhouette = clusteringEvaluator.evaluate(pred_kmeans)
-		val m = new HashMap[String,String]()
-		m.put("randomForest",auc_rf.toString)
-		m.put("multiLayerPercepteron",auc_mlp.toString)
-		m.put("logisticRegression",auc_lr.toString)
-		m.put("silhouette",silhouette.toString)
+		val m = new HashMap[String,Double]()
+		m.put("randomForest",auc_rf)
+		m.put("multiLayerPercepteron",auc_mlp)
+		m.put("logisticRegression",auc_lr)
+		m.put("silhouette",silhouette)
 		if (toElastic) {
       val indexResponse = send_to_elastic(METRICS_INDEX_CHAMPION,METRICS_DOC_TYPE,m)
     }
-		log.info(s"auc_rf $auc_rf auc_mlp $auc_mlp auc_lr $auc_lr  silhouette $silhouette")
+		log.info(s"ChampionMetric : $m")
     m.toMap
 	}
 
   case class ABobj ( algo: String , weight: Double )
 
-  def getABMetric(df: DataFrame, ab_split:Array[ABobj],m: HashMap[String, String] = new HashMap[String,String](), toElastic: Boolean = false) = {
+  def getABMetric(df: DataFrame, ab_split:Array[ABobj],m: HashMap[String, Double] = new HashMap[String,Double](), toElastic: Boolean = false) = {
     val split_dfs = df.randomSplit(ab_split.map(_.weight))
     for ( i <- 0 to ab_split.length-1) {
       val algo = ab_split(i).algo
       val sub_df = split_dfs(i)
       val pred = model(algo).transform(sub_df)
       val auc = evalAUC.evaluate(pred)
-      m.put(algo,auc.toString)
+      m.put(algo,auc)
     }
     val pred_kmeans = model("kmeans").transform(df)
 		val silhouette = clusteringEvaluator.evaluate(pred_kmeans)
-		m.put("silhouette",silhouette.toString)
+		m.put("silhouette",silhouette)
 		if (toElastic) { 
       val indexResponse = send_to_elastic(METRICS_INDEX_ABTESTING,METRICS_DOC_TYPE,m)
     }
-		log.info(s"ABMetric silhouette $silhouette auc : $m")
+		//log.info(s"ABMetric  : $m")
     m.toMap
 	}
 
 
-  def getMultiArmMetric(df: DataFrame, ab_split:Array[ABobj],m: HashMap[String, String] = new HashMap[String,String](), toElastic: Boolean = false) = {
+  def getMultiArmMetric(df: DataFrame, ab_split:Array[ABobj],m: HashMap[String, Double] = new HashMap[String,Double](), toElastic: Boolean = false) = {
     val split_dfs = df.randomSplit(ab_split.map(_.weight))
     for ( i <- 0 to ab_split.length-1) {
       val algo = ab_split(i).algo
       val sub_df = split_dfs(i)
       val pred = model(algo).transform(sub_df)
       val auc = evalAUC.evaluate(pred)
-      m.put(algo,auc.toString)
+      m.put(algo,auc)
+      m.put(algo+"_split",ab_split(i).weight)
     }
     val pred_kmeans = model("kmeans").transform(df)
 		val silhouette = clusteringEvaluator.evaluate(pred_kmeans)
-		m.put("silhouette",silhouette.toString)
+		m.put("silhouette",silhouette)
 		if (toElastic) { 
       val indexResponse = send_to_elastic(METRICS_INDEX_MULTIARM,METRICS_DOC_TYPE,m)
     }
-		log.info(s"ABMetric silhouette $silhouette auc : $m")
+		log.info(s"MultArmMetric  : $m")
     m.toMap
 	}
 
   def getSampleDf(total_df: DataFrame) = {
-		val SAMPLE_FRACTION = 0.1
-		val MAX_SAMPLE_SIZE=100
+		val SAMPLE_FRACTION = 0.5
+		val MAX_SAMPLE_SIZE=500
 		val total_df_size = total_df.count()
 		val sample_fraction = scala.math.min(SAMPLE_FRACTION,MAX_SAMPLE_SIZE.toDouble/total_df_size.toDouble)
 		total_df.sample(sample_fraction)
@@ -331,7 +332,11 @@ class StreamDemo(args: ArgsConfig) {
 	}
 
 
-	class MetricGetterMultiArm(df : DataFrame, delay: FiniteDuration = 30.second, ab_split : Array[ABobj] ) extends Actor {
+	class MetricGetterMultiArm(df : DataFrame, delay: FiniteDuration = 30.second, var ab_split : Array[ABobj] ) extends Actor {
+    //create new map with algos as keys
+    var ab_split_map = ab_split.map({ case ABobj(algo,w) => (algo,w)}).toMap 
+    //For each algo create a new Map with auc and count as keys
+    var scorecard = ab_split_map.map({ case (algo,v) => algo -> Map("auc" -> (0.0).asInstanceOf[Double], "count" -> 0.asInstanceOf[Double])})
 		var cancellable : akka.actor.Cancellable = null
 		def receive = {
 			case "tick" => 
@@ -339,7 +344,22 @@ class StreamDemo(args: ArgsConfig) {
 				cancellable = system.scheduler.scheduleOnce(delay, self, "tick")
 				// do something
         val sampled_df = getSampleDf(df) //sample a smaller df to simulate an incoming stream
-				getMultiArmMetric(sampled_df,ab_split,toElastic=true) //calculate metrics and send to elastic
+
+				val current_auc = getMultiArmMetric(sampled_df,ab_split,toElastic=true) //calculate metrics and send to elastic
+        val sampled_df_len = sampled_df.count()
+        var auc_sum: Double = 0.0
+        //calculating new_auc = (old_auc*count + auc_of_sample*sample_count)/(count+sample_count)
+        scorecard = scorecard.map({ case (algo, m) => {
+          val count = m("count")
+          val sample_count = sampled_df_len*ab_split_map(algo)
+          val auc:Double = ( m("auc")*count+current_auc(algo)*sample_count)/(count+sample_count)
+          auc_sum += auc
+          (algo,Map("auc" -> auc, "count" -> (count+sample_count)))
+        }})
+        //calculating new split ratio => higher auc gets higher split percentage
+        ab_split = ab_split.map({case ABobj(a,s) => ABobj(a,scorecard(a)("auc")/auc_sum) })
+
+        
       case "stop" =>
         context stop self
 		}
@@ -403,8 +423,14 @@ class StreamDemo(args: ArgsConfig) {
 		path("stopMetricsAB") {
 			log.info(s"route stopMetricsAB called")
 			metricGetterAB ! "stop"
-      state -= "metric_state"
+      state -= "ab_state"
 			complete("stopped metricGetterAB")
+		}~		
+		path("stopMetricsMultiArm") {
+			log.info(s"route stopMetricsMultiArm called")
+			metricGetterMultiArm ! "stop"
+      state -= "multiarm_state"
+			complete("stopped metricGetterMultiArm")
 		}~		
 		path("deleteMetricsChampion") {
 			log.info(s"route deleteMetricsChampion called")
@@ -530,7 +556,7 @@ class StreamDemo(args: ArgsConfig) {
       (path("startMetricsMultiArm" /IntNumber ) & parameters("split".as(CsvSeq[Double])) & parameters("algos".as(CsvSeq[String])) ) { (seconds , split, algos) => 
 				entity(as[JsObject]) { obj => {
             val ab_split = (algos zip split).map({case (a,w) => ABobj(a,w)}).toArray
-				    log.info(s"route startMetricsAB called with seconds=$seconds ab_split=${ab_split.mkString(", ")} req=${obj.fields}\n")
+				    log.info(s"route startMetricsMultiArm called with seconds=$seconds ab_split=${ab_split.mkString(", ")} req=${obj.fields}\n")
         		implicit val timeout = Timeout(60 seconds)
             val reqMap = DfLoad_DEFAULTS ++ obj.fields.map({ case (k,v) => (k,v.toString.replace("\"",""))})
 						val df = loadDataframe(reqMap)
@@ -539,10 +565,10 @@ class StreamDemo(args: ArgsConfig) {
 						}
 						metricGetterMultiArm = system.actorOf(Props(new MetricGetterMultiArm(df, Duration(seconds,"seconds"),ab_split)), name="metricGetterMultiArm")
 						metricGetterMultiArm ! "tick"
-            state.put("ab_state","sampling")
-            state.put("ab_sampling_period", seconds.toString) //set class member
+            state.put("multiarm_state","sampling")
+            state.put("multiarm_sampling_period", seconds.toString) //set class member
 
-				    complete(s"route startMetricsAB called with seconds=$seconds ab_split=${ab_split.mkString(", ")}\n")
+				    complete(s"route startMetricsMultiArm called with seconds=$seconds ab_split=${ab_split.mkString(", ")}\n")
           }
         }
 			}~		
@@ -550,7 +576,7 @@ class StreamDemo(args: ArgsConfig) {
 				entity(as[JsObject]) { obj => {
 						log.info(s"route getMetric called with req=${obj.fields}")
         		implicit val timeout = Timeout(60 seconds)
-						val result: Future[collection.immutable.Map[String,String]] = Future[collection.immutable.Map[String,String]] {
+						val result: Future[collection.immutable.Map[String,Double]] = Future[collection.immutable.Map[String,Double]] {
               val reqMap = DfLoad_DEFAULTS ++ obj.fields.map({ case (k,v) => (k,v.toString.replace("\"",""))})
 							val df = loadDataframe(reqMap)
 							val metric = getChampionMetric(df)
