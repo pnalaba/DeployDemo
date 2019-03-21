@@ -17,15 +17,18 @@ TODO - save the metrics to a DB - elasticsearch or MaprDB
 There is a http path to stop the metrics from being calculated.
 
 Sample command line -
+To build :
+from top-level directory (directory where this readme file is present),
+sbt package assemblyPackageDependecy
 
 To run in yarn mode
-spark-submit --master yarn target/scala-2.11/streamdemo-assembly-0.1.jar -y
+spark-submit --master yarn --jars target/scala-2.11/streamdemo-assembly-0.1-deps.ja target/scala-2.11/streamdemo_2.11-0.1.jar -y
 
 To run in standalone spark mode
-spark-submit --master local[\*] target/scala-2.11/streamdemo-assembly-0.1.jar -s
+spark-submit --master local[*] --jars target/scala-2.11/streamdemo-assembly-0.1-deps.ja target/scala-2.11/streamdemo_2.11-0.1.jar -s
 
 To specify port number to use for the http server
-spark-submit --master yarn target/scala-2.11/streamdemo-assembly-0.1.jar -y -p 9802
+spark-submit --master yarn --jars target/scala-2.11/streamdemo-assembly-0.1-deps.ja target/scala-2.11/streamdemo_2.11-0.1.jar -y -p 9808
 
 Once server is running, http post requests can be made from a different terminal. Sample commands -
 
