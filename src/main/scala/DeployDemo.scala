@@ -129,12 +129,6 @@ class DeployDemo(args: ArgsConfig) {
 		}
 	}
 
-	//from ui request
-	case class DfLoadReq (
-		val filepath: String,
-		val hasHeader: String  = "false",
-		val sep: String = ",",
-		val inferSchema: String = "false")
 
   val DfLoad_DEFAULTS = Map("hasHeader" ->"true", "sep" -> ",", "inferSchema" -> "true")
 
@@ -171,8 +165,6 @@ class DeployDemo(args: ArgsConfig) {
 
 
 
-	//format for unmarshalling and marshalling
-	implicit val filePathFormat = jsonFormat4(DfLoadReq)
 
 
 	/** Function - given filename etc, returns a persisted dataframe**/
@@ -303,13 +295,21 @@ class DeployDemo(args: ArgsConfig) {
 
 
 	class MetricGetterChampion(df : DataFrame, delay: FiniteDuration = 30.second ) extends Actor {
+    var injectBadData : Boolean = false
+    var bad_df: DataFrame = null 
 		var cancellable : akka.actor.Cancellable = null
+    def setBadData(df : DataFrame) {
+      bad_df = df
+      injectBadData = true
+    }
+
 		def receive = {
 			case "tick" => 
 				//send another periodic tick after the specified delay
 				cancellable = system.scheduler.scheduleOnce(delay, self, "tick")
 				// do something
-        val sampled_df = getSampleDf(df) //sample a smaller df to simulate an incoming stream
+        val sampled_df = if (injectBadData && bad_df != null) bad_df else  getSampleDf(df) //sample a smaller df to simulate an incoming stream
+        injectBadData = false //we already should have injected bad data, so revert
 				getChampionMetric(sampled_df,true) //calculate metrics and send to elastic
       case "stop" =>
         context stop self
@@ -416,19 +416,25 @@ class DeployDemo(args: ArgsConfig) {
 		}~
 		path("stopMetricsChampion") {
 			log.info(s"route stopMetricsChampion called")
-			metricGetterChampion ! "stop"
+      if (metricGetterChampion != null ) {
+			  metricGetterChampion ! "stop"
+      }
       state -= "champion_state"
 			complete("stopped metricGetterChampion")
 		}~		
 		path("stopMetricsAB") {
 			log.info(s"route stopMetricsAB called")
-			metricGetterAB ! "stop"
+      if (metricGetterAB != null) {
+			  metricGetterAB ! "stop"
+      }
       state -= "ab_state"
 			complete("stopped metricGetterAB")
 		}~		
 		path("stopMetricsMultiArm") {
 			log.info(s"route stopMetricsMultiArm called")
-			metricGetterMultiArm ! "stop"
+      if (metricGetterMultiArm != null) {
+			  metricGetterMultiArm ! "stop"
+      }
       state -= "multiarm_state"
 			complete("stopped metricGetterMultiArm")
 		}~		
@@ -471,6 +477,11 @@ class DeployDemo(args: ArgsConfig) {
 			  complete(s"ret: $value\n")
       }
 		}~		
+      path("injectBadDataChampion") { 
+				log.info(s"route injectBadDataChampion called")
+				//metricGetterChampion.setBadData(df)
+				complete(s"injected metricGetterChampion with badData")
+			}~		
     path("models") {
       complete(available_models)
     }~
