@@ -39,7 +39,9 @@ export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
      *                */
 
     //chartObj.data = dataset;
-    chartObj.margin = { top: 15, right: 60, bottom: 120, left: 50 };
+    //Note : If you want to show x axis tick text and rotate it,
+    //  increase margin.bottom
+    chartObj.margin = { top: 15, right: 60, bottom: 30, left: 50 };
     chartObj.width = 650 - chartObj.margin.left - chartObj.margin.right;
     chartObj.height = 480 - chartObj.margin.top - chartObj.margin.bottom;
 
@@ -85,17 +87,11 @@ export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
 
     chartObj.bisectYear = d3.bisector(chartObj.xFunct).left; //< Can be overridden in definition
 
-    /*
-      // Get the max of every yFunct
-      chartObj.max = function(fn) {
-        return d3.max(chartObj.data, fn);
-      };
-    */
     chartObj.yScale = d3.scale
       .linear()
       .range([chartObj.height, 0])
-      //.domain([0, d3.max(chartObj.yFuncts.map(chartObj.max))]);
       .domain([0, 1.0]);
+    //.domain([0, 1.0]);
 
     chartObj.formatAsYear = d3.format("");
 
@@ -203,10 +199,12 @@ export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
 
     chartObj.svg.select(".x.axis .label").attr("x", chartObj.width / 2);
 
+    /* -- below statement to rotate xaxis tick text to left bottom 
     chartObj.svg
       .selectAll(".x > .tick > text")
       .attr("transform", "rotate(-65)")
       .style("text-anchor", "end");
+      */
 
     chartObj.svg.select(".y.axis").call(chartObj.yAxis);
     chartObj.svg.select(".y.axis .label").attr("x", -chartObj.height / 2);
@@ -283,6 +281,12 @@ export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
       .append("g")
       .attr("class", "x axis")
       .attr("transform", "translate(0," + chartObj.height + ")");
+
+    chartObj.yAxis = d3.svg
+      .axis()
+      .scale(chartObj.yScale)
+      .orient("left")
+      .tickFormat(chartObj.yFormatter); //< Can be overridden in definition
 
     yAxisElem = chartObj.svg.append("g").attr("class", "y axis");
     //assuming here that yaxis doesn't change with time
@@ -367,6 +371,15 @@ export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
     chartObj.data = dataset;
     chartObj.xScale.domain(d3.extent(chartObj.data, chartObj.xFunct)); //< Can be overridden in definition
 
+    // Get the max of every yFunct
+    chartObj.max = function(fn) {
+      return d3.max(chartObj.data, fn);
+    };
+    chartObj.yScale.domain([
+      0,
+      d3.max(chartObj.yFuncts.map(chartObj.max)) * 1.1
+    ]); //adding 10% extra to scale
+
     // Build line building functions
     for (var yObj in yObjs) {
       yObjs[yObj].line = d3.svg
@@ -398,11 +411,16 @@ export function makeLineChart(xName, yObjs, axisLables, xAxisDateFormatStr) {
 
     // Draw Axis
     var xAxisElem1 = xAxisElem.call(chartObj.xAxis);
+    yAxisElem.call(chartObj.yAxis);
 
+    /* -- the below is for rotating tick text
     xAxisElem1
       .selectAll(".tick > text")
       .attr("transform", "rotate(-65)")
       .style("text-anchor", "end");
+      */
+    //The below statement is to remove tick text from xAxis
+    xAxisElem1.selectAll(".tick > text").remove();
 
     chartObj.svg
       .select(".x.axis")
