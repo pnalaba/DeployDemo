@@ -42,9 +42,12 @@ class DeployOptions extends React.Component {
             </ReactHover.Trigger>
             <ReactHover.Hover type="hover">
               <div className="hover">
-                {HoverText["multiarmed_bandit"].map((name, index) => (
-                  <p key={index}>{name}</p>
-                ))}
+                <b>{HoverText["multiarmed_bandit"].title}</b>
+                {HoverText["multiarmed_bandit"].description.map(
+                  (name, index) => (
+                    <p key={index}>{name}</p>
+                  )
+                )}
               </div>
             </ReactHover.Hover>
           </ReactHover>
@@ -224,9 +227,12 @@ class Calculator extends React.Component {
                 </ReactHover.Trigger>
                 <ReactHover.Hover type="hover">
                   <div className="hover" style={{ height: "200px" }}>
-                    {HoverText["champion_challenger"].map((name, index) => (
-                      <p key={index}>{name}</p>
-                    ))}
+                    <b>{HoverText["champion_challenger"].title}</b>
+                    {HoverText["champion_challenger"].description.map(
+                      (name, index) => (
+                        <p key={index}>{name}</p>
+                      )
+                    )}
                   </div>
                 </ReactHover.Hover>
               </ReactHover>
@@ -283,7 +289,8 @@ class Calculator extends React.Component {
                 </ReactHover.Trigger>
                 <ReactHover.Hover type="hover">
                   <div className="hover">
-                    {HoverText["ab_testing"].map((name, index) => (
+                    <b>{HoverText["ab_testing"].title}</b>
+                    {HoverText["ab_testing"].description.map((name, index) => (
                       <p key={index}>{name}</p>
                     ))}
                   </div>
@@ -331,9 +338,12 @@ class Calculator extends React.Component {
                 </ReactHover.Trigger>
                 <ReactHover.Hover type="hover">
                   <div className="hover">
-                    {HoverText["multiarmed_bandit"].map((name, index) => (
-                      <p key={index}>{name}</p>
-                    ))}
+                    <b>{HoverText["multiarmed_bandit"].title}</b>
+                    {HoverText["multiarmed_bandit"].description.map(
+                      (name, index) => (
+                        <p key={index}>{name}</p>
+                      )
+                    )}
                   </div>
                 </ReactHover.Hover>
               </ReactHover>
