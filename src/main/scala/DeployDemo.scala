@@ -99,7 +99,7 @@ class DeployDemo(args: ArgsConfig) {
 	val context = new StreamdemoContext()
 	context.printSettings()
 	val DATA_DIR = context.settings.dataDir
-  val MAPRFS_PREFIX = "/mapr/my.cluster.com"
+  val MAPRFS_PREFIX = context.settings.maprfsPrefix
 
 	val MODEL_DIR = DATA_DIR+"models/"
 
@@ -110,6 +110,7 @@ class DeployDemo(args: ArgsConfig) {
 		
 		val port = config.getInt("demo.port")
 		val dataDir= config.getString("demo.data_dir")
+    val maprfsPrefix = config.getString("demo.maprfs_prefix")
 		val appName = config.getString("demo.app_name")
 		val elastic_port = config.getInt("demo.elastic_port")
 		//val elastic_nodes = config.getStringList("demo.elastic_nodes").toList
@@ -126,6 +127,7 @@ class DeployDemo(args: ArgsConfig) {
 		def printSettings() {
 			log.info("port=" + settings.port)
 			log.info("data_dir=" + settings.dataDir)
+      log.info("maprfs_prefix="+settings.maprfsPrefix)
 		}
 	}
 
