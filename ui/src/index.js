@@ -62,10 +62,8 @@ class DatafileSelector extends React.Component {
   render() {
     return (
       <form>
-        <b>Select batch file to start scoring ... </b>
+        <b>Select batch file to start scoring : </b>
         <label>
-          {" "}
-          Avaliable batch files in repository:{" "}
           <select value={this.props.value} onChange={this.props.handleChange}>
             {this.props.options.map(item => (
               <option value={item} key={item}>
@@ -113,7 +111,7 @@ class Calculator extends React.Component {
     //.replace(/([^T]+)T([^\.]+).*/g, "$1 $2");
     //
     this.data_dir =
-      "/mapr/my.cluster.com/user/mapr/projects/SparkStreaming/stream_test/";
+      "/mapr/my.cluster.com/user/mapr/ml-demo/Server/stream_test/";
 
     this.state = {
       server: "http://" + window.location.hostname + ":" + SERVER_PORT,
