@@ -28,6 +28,7 @@ import ch.megard.akka.http.cors.scaladsl.CorsDirectives._
 
 import org.apache.spark._
 import org.apache.spark.ml.evaluation._
+import org.apache.spark.ml.Pipeline
 import org.apache.spark.ml.PipelineModel
 import org.apache.spark.mllib._
 import org.apache.spark.mllib.linalg.Vectors
@@ -80,6 +81,7 @@ class DeployDemo(args: ArgsConfig) {
 	var df : DataFrame = null
 	var load_info_df : Map[String,String] = null
 	var model : Map[String,PipelineModel] = new HashMap[String,PipelineModel]() 
+  var transformer : PipelineModel = null
 	var evalAUC : BinaryClassificationEvaluator = null
 	var clusteringEvaluator : ClusteringEvaluator = null
 	var metricGetterChampion : ActorRef = null
@@ -101,7 +103,7 @@ class DeployDemo(args: ArgsConfig) {
 	val DATA_DIR = context.settings.dataDir
   val MAPRFS_PREFIX = "/mapr/my.cluster.com"
 
-	val MODEL_DIR = DATA_DIR+"models/"
+	val MODEL_DIR = DATA_DIR+"/models"
 
 
 
@@ -149,15 +151,18 @@ class DeployDemo(args: ArgsConfig) {
 		log.info(s"Got sparkContext $sc and dummy_count=$dummy_count")
 		log.info(s"sc.getExecutorMemoryStatus = ${sc.getExecutorMemoryStatus}")
 		//load the ml models with pretrained parameters
+    //
+    //load tranformer
 
+    transformer = PipelineModel.read.load(DATA_DIR+"/transform")
     //get list of models in model_dir
     available_models = listDirs(MAPRFS_PREFIX+MODEL_DIR)
     log.info("available_models : "+available_models.mkString(":"))
 
     for (model_name <- available_models) {
-      model += (model_name -> PipelineModel.read.load(MODEL_DIR+model_name))
+      model += (model_name -> PipelineModel.read.load(MODEL_DIR+"/"+model_name))
     }
-		evalAUC = new BinaryClassificationEvaluator().setLabelCol("target").setMetricName("areaUnderROC").setRawPredictionCol("probability")
+		evalAUC = new BinaryClassificationEvaluator().setLabelCol("label").setMetricName("areaUnderROC").setRawPredictionCol("probability")
     clusteringEvaluator = new ClusteringEvaluator()
 
 	}
@@ -172,12 +177,14 @@ class DeployDemo(args: ArgsConfig) {
 		if (df != null && load_info_df != null && (load_info_df.toSet diff req.toSet).size == 0 )  { 
 			return df
 		}
-    //log.info(s"In loadDataframe filepath=${req("filepath")} type=${req("filepath").getClass}\n")
+    log.info(s"In loadDataframe filepath=${req("filepath")} req=$req\n")
 		df = spark.read.format("csv")
 		.option("header", req("hasHeader"))
 		.option("sep",req("sep"))
 		.option("inferSchema",req("inferSchema"))
 		.load(req("filepath"))
+
+    log.info("In loadDataframe ,df.schema="+df.schema)
 
 
 		df.persist() //cache the dataframe
@@ -221,17 +228,18 @@ class DeployDemo(args: ArgsConfig) {
 	}
 
 	def getChampionMetric(df: DataFrame,toElastic: Boolean = false) = {
-		val pred_rf = model("randomForest").transform(df)
-		val pred_mlp = model("multiLayerPercepteron").transform(df)
-    val pred_lr = model("logisticRegression").transform(df)
-		val pred_kmeans = model("kmeans").transform(df)
+    val transformed_df = transformer.transform(df)
+		val pred_rf = model("randomForest").transform(transformed_df)
+		val pred_mlp = model("neuralNetwork").transform(transformed_df)
+    val pred_lr = model("logisticRegression").transform(transformed_df)
+		val pred_kmeans = model("kmeans").transform(transformed_df)
 		val auc_rf = evalAUC.evaluate(pred_rf)
 		val auc_mlp = evalAUC.evaluate(pred_mlp)
     val auc_lr = evalAUC.evaluate(pred_lr)
 		val silhouette = clusteringEvaluator.evaluate(pred_kmeans)
 		val m = new HashMap[String,Double]()
 		m.put("randomForest",auc_rf)
-		m.put("multiLayerPercepteron",auc_mlp)
+		m.put("neuralNetwork",auc_mlp)
 		m.put("logisticRegression",auc_lr)
 		m.put("silhouette",silhouette)
 		if (toElastic) {
@@ -243,7 +251,8 @@ class DeployDemo(args: ArgsConfig) {
 
   case class ABobj ( algo: String , weight: Double )
 
-  def getABMetric(df: DataFrame, ab_split:Array[ABobj],m: HashMap[String, Double] = new HashMap[String,Double](), toElastic: Boolean = false) = {
+  def getABMetric(input_df: DataFrame, ab_split:Array[ABobj],m: HashMap[String, Double] = new HashMap[String,Double](), toElastic: Boolean = false) = {
+    val df = transformer.transform(input_df)
     val split_dfs = df.randomSplit(ab_split.map(_.weight))
     for ( i <- 0 to ab_split.length-1) {
       val algo = ab_split(i).algo
@@ -252,6 +261,7 @@ class DeployDemo(args: ArgsConfig) {
       val auc = evalAUC.evaluate(pred)
       m.put(algo,auc)
     }
+
     val pred_kmeans = model("kmeans").transform(df)
 		val silhouette = clusteringEvaluator.evaluate(pred_kmeans)
 		m.put("silhouette",silhouette)
@@ -263,7 +273,8 @@ class DeployDemo(args: ArgsConfig) {
 	}
 
 
-  def getMultiArmMetric(df: DataFrame, ab_split:Array[ABobj],m: HashMap[String, Double] = new HashMap[String,Double](), toElastic: Boolean = false) = {
+  def getMultiArmMetric(input_df: DataFrame, ab_split:Array[ABobj],m: HashMap[String, Double] = new HashMap[String,Double](), toElastic: Boolean = false) = {
+    val df = transformer.transform(input_df)
     val split_dfs = df.randomSplit(ab_split.map(_.weight))
     for ( i <- 0 to ab_split.length-1) {
       val algo = ab_split(i).algo
@@ -528,6 +539,29 @@ class DeployDemo(args: ArgsConfig) {
 					}// end of function with arg filePath
 				} //end of entity(as[DfLoadReq])...
 			}~		
+      path("getSchema") {
+        entity(as[JsObject]) { obj => {
+          log.info(s"route getSchema called with req=${obj.fields}")
+          val reqMap = DfLoad_DEFAULTS ++ obj.fields.map({ case (k,v) => (k,v.toString.replace("\"",""))})
+
+          implicit val timeout = Timeout(30 seconds)
+          val count: Future[String] = Future[String] {
+            if (sc != null) {
+              val df = loadDataframe(reqMap)
+              val schema = df.schema
+              log.info(schema)
+              schema.toString
+            } else 
+              s"You must enable spark to run this service"
+          }
+          onComplete(count) { 
+            case Success(value) =>
+              complete(value+"\n")
+            case Failure(t) => complete("An error has occured: "+t.getMessage+"\n")
+          }
+        }// end of function with arg filePath
+        } //end of entity(as[DfLoadReq])...
+      }~ //end of path("getSchema")
       path("startMetricsChampion" /IntNumber ) { seconds =>
 				entity(as[JsObject]) { obj => {
 						log.info(s"route startMetricsChampion called with sampling period =$seconds req=${obj.fields}")
