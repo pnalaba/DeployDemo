@@ -38,10 +38,8 @@ class ModelSelector extends React.Component {
     return (
       <form onSubmit={this.handleModelSubmit}>
         <p>
-          <b>Select multiple models to deploy... </b>
+          <b>Pre-trained models ready for deployment : </b>
           <label>
-            {" "}
-            Avaliable models in repository:{" "}
             <select
               multiple={true}
               value={this.state.models}
