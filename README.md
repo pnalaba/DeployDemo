@@ -2,13 +2,18 @@
 
 # Configuration
 
-Settings are specified in the file src/main/resource/reference.conf.  
-*port is the default port for http server - can be overridden by specifying -p <PORT> while launching  
-*data_dir is the root directory for model and data files that are read in spark.  
-Commands to setup data_dir :  
-mv data/model_files.tgz data_dir  
-cd data_dir  
+Settings are specified in the file src/main/resource/reference.conf.
+
+- port is the default port for http server - can be overridden by specifying -p <PORT> while launching
+- data_dir is the root directory for model and data files that are read in spark.
+
+Commands to setup data_dir :
+
+```
+mv data/model_files.tgz data_dir
+cd data_dir
 tar xzf model_files.tgz
+```
 
 ML model Pipelines currently in the model directory -
 
