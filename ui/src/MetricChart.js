@@ -108,7 +108,7 @@ class MetricChart extends React.Component {
         <div
           id={this.props.chart_id}
           className="chart-wrapper"
-          style={{ width: "100%", height: "auto" }}
+          style={this.props.style}
         />
       </div>
     );

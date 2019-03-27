@@ -246,7 +246,7 @@ class Calculator extends React.Component {
                   linestyle: "dashed"
                 },
                 randomForest: { column: "randomForest" },
-                neuralNet: { column: "multiLayerPercepteron" },
+                neuralNet: { column: "neuralNetwork" },
                 logisticRegression: { column: "logisticRegression" }
               }}
               axisLabels={{ xAxis: "Date", yAxis: "AUC" }}
@@ -347,7 +347,7 @@ class Calculator extends React.Component {
                   linestyle: "dashed"
                 },
                 randomForest: { column: "randomForest" },
-                neuralNet: { column: "multiLayerPercepteron" },
+                neuralNet: { column: "neuralNetwork" },
                 logisticRegression: { column: "logisticRegression" }
               }}
               axisLabels={{ xAxis: "Date", yAxis: "AUC" }}
@@ -406,7 +406,7 @@ class Calculator extends React.Component {
                   linestyle: "dashed"
                 },
                 randomForest: { column: "randomForest" },
-                neuralNet: { column: "multiLayerPercepteron" },
+                neuralNet: { column: "neuralNetwork" },
                 logisticRegression: { column: "logisticRegression" }
               }}
               axisLabels={{ xAxis: "Date", yAxis: "AUC" }}
@@ -423,7 +423,7 @@ class Calculator extends React.Component {
               yObjs={{
                 kmeansSilhouette: { column: "silhouette", linestyle: "dashed" },
                 randomForest: { column: "randomForest_split" },
-                neuralNet: { column: "multiLayerPercepteron_split" },
+                neuralNet: { column: "neuralNetwork_split" },
                 logisticRegresison: { column: "logisticRegression_split" }
               }}
               axisLabels={{ xAxis: "Date", yAxis: "split" }}
