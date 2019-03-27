@@ -8,9 +8,9 @@ Settings are specified in the file src/main/resource/reference.conf.
 Commands to setup data_dir :  
 mv data/model_files.tgz data_dir  
 cd data_dir  
-tar xzf model_files.tgz  
+tar xzf model_files.tgz
 
-ML model Pipelines currently in the model directory -  
+ML model Pipelines currently in the model directory -
 
 ### rf Random forest
 
@@ -29,27 +29,51 @@ There is a http path to stop the metrics from being calculated.
 # Sample command line -
 
 To build :  
-from top-level directory (directory where this readme file is present),  
+from top-level directory (directory where this readme file is present),
+
+```
 sbt package assemblyPackageDependecy
+```
 
-To run in yarn mode  
+To run in yarn mode
+
+```
 spark-submit --master yarn --jars target/scala-2.11/deploydemo-assembly-0.1-deps.ja target/scala-2.11/deploydemo_2.11-0.1.jar -y
+```
 
-To run in standalone spark mode  
+To run in standalone spark mode
+
+```
 spark-submit --master local[*] --jars target/scala-2.11/deploydemo-assembly-0.1-deps.j target/scala-2.11/deploydemo_2.11-0.1.jar -s
+```
 
-To specify port number to use for the http server  
+To specify port number to use for the http server
+
+```
 spark-submit --master yarn --jars target/scala-2.11/deploydemo-assembly-0.1-deps.ja target/scala-2.11/deploydemo_2.11-0.1.jar -y -p 9808
+```
+
+To start ui
+
+```
+cd ui
+npm start
+```
 
 # Sanity Check
 
 Once server is running, http post requests can be made from a different terminal. Sample commands -
 
+```
 curl -H "Content-Type: application/json" -X POST -d '{"filepath" :"/user/mapr/projects/SparkStreaming/stream_test/sample500.csv", "hasHeader": "true", "inferSchema": "true", "sep":","}' http://0.0.0.0:9808/countlines
 
 curl -H "Content-Type: application/json" -X POST -d '{"filepath" :"/user/mapr/projects/SparkStreaming/stream_test/sample500.csv", "hasHeader": "true", "inferSchema": "true", "sep":","}' http://0.0.0.0:9808/startMetrics
 
 curl -H "Content-Type: application/json" -X POST -d '{"filepath" :"/user/mapr/projects/SparkStreaming/stream_test/sample500.csv", "hasHeader": "true", "inferSchema": "true", "sep":","}' http://0.0.0.0:9808/stopMetrics
+```
 
-To see elasticsearch data -  
+To see elasticsearch data -
+
+```
 curl -H "Content-Type: application/json" -X GET 'localhost:9200/deploydemo/\_search?size=1000&pretty=true'
+```
