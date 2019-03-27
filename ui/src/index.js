@@ -2,10 +2,9 @@ import React from "react";
 import ReactDOM from "react-dom";
 import "./index.css";
 import "./Multiline.css";
-import { LineChart } from "react-easy-chart";
+//import { LineChart } from "react-easy-chart";
 //import mlp from "./nnet.png";
 //import rforest from "./randomForest.png";
-import bulb from "./bulb.png";
 import ReactHover from "react-hover";
 import HoverText from "./hovertext.js";
 import ModelSelector from "./ModelSelector.js";
@@ -13,50 +12,19 @@ import Metrics from "./Metrics.js";
 import MetricsAB from "./MetricsAB.js";
 import MetricChart from "./MetricChart.js";
 import { makeLineChart } from "./Multiline.js";
+//images
+import maprlogo from "./images/maprlogo.png";
+import bulb from "./images/bulb.png";
+import championChallenger from "./images/championChallenger.png";
+import abTesting from "./images/abTesting.png";
+import canary from "./images/canary.png";
+import multiArmBandit from "./images/multiArmedBandit.jpeg";
 
 const optionsCursorTrueWithMargin = {
   followCursor: true,
   shiftX: 20,
   shiftY: 0
 };
-
-class DeployOptions extends React.Component {
-  render() {
-    return (
-      <form>
-        <label>
-          {" "}
-          <input name="armed" type="checkbox" /> Multi-Armed Bandit ---> Bandit
-          Parameters: <input type="text" value=" " readOnly />
-        </label>
-        <div style={{ display: "inline-flex" }}>
-          <ReactHover
-            options={optionsCursorTrueWithMargin}
-            style={{ display: "inline-block" }}
-          >
-            <ReactHover.Trigger
-              type="trigger"
-              style={{ display: "inline-block" }}
-            >
-              <img src={bulb} alt="Logo" />
-            </ReactHover.Trigger>
-            <ReactHover.Hover type="hover">
-              <div className="hover">
-                <b>{HoverText["multiarmed_bandit"].title}</b>
-                {HoverText["multiarmed_bandit"].description.map(
-                  (name, index) => (
-                    <p key={index}>{name}</p>
-                  )
-                )}
-              </div>
-            </ReactHover.Hover>
-          </ReactHover>
-        </div>
-        <input type="submit" value="SUBMIT" />
-      </form>
-    );
-  }
-}
 
 class DatafileSelector extends React.Component {
   render() {
@@ -173,6 +141,32 @@ class Calculator extends React.Component {
   render() {
     return (
       <div>
+        <div className="container-fluid">
+          <img
+            alt=""
+            src={maprlogo}
+            className="rounded mx-auto d-block"
+            width={"200px"}
+            style={{
+              marginRight: "auto",
+              marginLeft: "auto",
+              display: "block"
+            }}
+          />
+        </div>
+        <div class="container-fluid">
+          <h1 className="text-center">
+            {" "}
+            User-Driven Machine-Learning
+            <br />
+            Model Deployment Demo{" "}
+          </h1>
+        </div>
+        <div className="container-fluid">
+          <h5 className="text-center"> (Second stage of a two-part demo).</h5>
+          <h3 className="text-center"> Part 2, "Deploy models"</h3>
+        </div>
+
         <h1> User-Driven, Model Deployment Demo </h1>
         <h4>
           {" "}
@@ -224,7 +218,15 @@ class Calculator extends React.Component {
                   <img src={bulb} alt="Logo" />
                 </ReactHover.Trigger>
                 <ReactHover.Hover type="hover">
-                  <div className="hover" style={{ height: "200px" }}>
+                  <div className="hover quote">
+                    <img
+                      style={{ display: "block", margin: "auto" }}
+                      className="rounded mx-auto d-block"
+                      alt=""
+                      src={championChallenger}
+                      width="30%"
+                      height="30%"
+                    />
                     <b>{HoverText["champion_challenger"].title}</b>
                     {HoverText["champion_challenger"].description.map(
                       (name, index) => (
@@ -260,11 +262,33 @@ class Calculator extends React.Component {
 
           <li>
             <p>
-              <b>
+              <label>
                 Canary Model monitors Incoming Features as an early-warning
                 system for performance impacts...
-              </b>
-              <img src={bulb} alt="Logo" />{" "}
+              </label>
+              <div style={{ display: "inline-flex" }}>
+                <ReactHover options={optionsCursorTrueWithMargin}>
+                  <ReactHover.Trigger type="trigger">
+                    <img src={bulb} alt="Logo" />
+                  </ReactHover.Trigger>
+                  <ReactHover.Hover type="hover">
+                    <div className="hover quote">
+                      <img
+                        style={{ display: "block", margin: "auto" }}
+                        className="rounded mx-auto d-block"
+                        alt=""
+                        src={canary}
+                        width="30%"
+                        height="30%"
+                      />
+                      <b>{HoverText["canary"].title}</b>
+                      {HoverText["canary"].description.map((name, index) => (
+                        <p key={index}>{name}</p>
+                      ))}
+                    </div>
+                  </ReactHover.Hover>
+                </ReactHover>
+              </div>
             </p>
             <SimpleChart
               xName="date"
@@ -286,7 +310,16 @@ class Calculator extends React.Component {
                   <img src={bulb} alt="Logo" />
                 </ReactHover.Trigger>
                 <ReactHover.Hover type="hover">
-                  <div className="hover">
+                  <div className="hover quote">
+                    <img
+                      style={{ display: "block", margin: "auto" }}
+                      className="rounded mx-auto d-block"
+                      alt=""
+                      src={abTesting}
+                      width="30%"
+                      height="30%"
+                    />
+
                     <b>{HoverText["ab_testing"].title}</b>
                     {HoverText["ab_testing"].description.map((name, index) => (
                       <p key={index}>{name}</p>
@@ -335,7 +368,15 @@ class Calculator extends React.Component {
                   <img src={bulb} alt="Logo" />
                 </ReactHover.Trigger>
                 <ReactHover.Hover type="hover">
-                  <div className="hover">
+                  <div className="hover quote">
+                    <img
+                      style={{ display: "block", margin: "auto" }}
+                      className="rounded mx-auto d-block"
+                      alt=""
+                      src={multiArmBandit}
+                      width="30%"
+                      height="30%"
+                    />
                     <b>{HoverText["multiarmed_bandit"].title}</b>
                     {HoverText["multiarmed_bandit"].description.map(
                       (name, index) => (

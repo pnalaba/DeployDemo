@@ -6,6 +6,11 @@ var HoverText = {
       "Challenger. Challengers are compared against each other. The challenger that generates the best results then becomes the new champion."
     ]
   },
+  canary: {
+    title: "Canary Model",
+    description: ["Canary Model"]
+  },
+
   ab_testing: {
     title: "AB Testing",
     description: [
