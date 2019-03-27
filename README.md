@@ -83,5 +83,5 @@ curl -H "Content-Type: application/json" -X POST -d '{"filepath" :"/user/mapr/pr
 To see elasticsearch data -
 
 ```
-curl -H "Content-Type: application/json" -X GET 'localhost:9200/deploydemo/\_search?size=1000&pretty=true'
+curl -H "Content-Type: application/json" -X GET 'localhost:9200/deploydemo/_search?size=1000&pretty=true'
 ```
