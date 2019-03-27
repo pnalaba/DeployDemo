@@ -33,6 +33,8 @@ There is a http path to stop the metrics from being calculated.
 
 # Sample command line -
 
+## Server
+
 To build :  
 from top-level directory (directory where this readme file is present),
 
@@ -58,7 +60,8 @@ To specify port number to use for the http server
 spark-submit --master yarn --jars target/scala-2.11/deploydemo-assembly-0.1-deps.ja target/scala-2.11/deploydemo_2.11-0.1.jar -y -p 9808
 ```
 
-To start ui
+## UI
+To start ui, in a different terminal
 
 ```
 cd ui
