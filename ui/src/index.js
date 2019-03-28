@@ -3,8 +3,6 @@ import ReactDOM from "react-dom";
 import "./index.css";
 import "./Multiline.css";
 //import { LineChart } from "react-easy-chart";
-//import mlp from "./nnet.png";
-//import rforest from "./randomForest.png";
 import ReactHover from "react-hover";
 import HoverText from "./hovertext.js";
 import ModelSelector from "./ModelSelector.js";
@@ -25,50 +23,6 @@ const optionsCursorTrueWithMargin = {
   shiftX: 20,
   shiftY: 0
 };
-
-class DatafileSelector extends React.Component {
-  render() {
-    return (
-      <form>
-        <b>Select batch file to start scoring : </b>
-        <label>
-          <select value={this.props.value} onChange={this.props.handleChange}>
-            {this.props.options.map(item => (
-              <option value={item} key={item}>
-                {item}
-              </option>
-            ))}
-          </select>
-        </label>
-      </form>
-    );
-  }
-}
-
-class SimpleChart extends React.Component {
-  componentDidMount() {
-    var chart = makeLineChart(
-      this.props.xName,
-      this.props.yObjs,
-      this.props.axisLabels,
-      this.props.xAxisDateFormatStr
-    );
-    chart.bind("#" + this.props.chart_id);
-    this.chart = chart;
-    window.setTimeout(chart.update_svg_size, 3000);
-  }
-
-  render() {
-    if (this.chart) {
-      this.chart.render(this.props.data);
-    }
-    return (
-      <div>
-        <div id={this.props.chart_id} className="chart-wrapper" />
-      </div>
-    );
-  }
-}
 
 class Calculator extends React.Component {
   constructor(props) {
@@ -165,19 +119,23 @@ class Calculator extends React.Component {
         <div className="container-fluid">
           <h5 className="text-center"> (Second stage of a two-part demo).</h5>
           <h3 className="text-center"> Part 2, "Deploy models"</h3>
+          <div className="text-center" style={{ display: "inline-flex" }}>
+            <ReactHover options={optionsCursorTrueWithMargin}>
+              <ReactHover.Trigger type="trigger">
+                <img src={bulb} alt="Logo" />
+              </ReactHover.Trigger>
+              <ReactHover.Hover type="hover">
+                <div className="hover quote">
+                  <b>{HoverText["deploydemo"].title}</b>
+                  {HoverText["deploydemo"].description.map((name, index) => (
+                    <p key={index}>{name}</p>
+                  ))}
+                </div>
+              </ReactHover.Hover>
+            </ReactHover>
+          </div>
         </div>
 
-        <h1> User-Driven, Model Deployment Demo </h1>
-        <h4>
-          {" "}
-          Second stage of a two-part demo. In part one, model(s) were trained.{" "}
-          <br />
-          In stage two, models that have been trained are put into production
-          and monitored
-          <br />
-          The user can select which models to deploy, the method for
-          orchestration and how to
-        </h4>
         <ol>
           <li>
             <ModelSelector server={this.state.server} />
@@ -433,6 +391,50 @@ class Calculator extends React.Component {
             />
           </li>
         </ol>
+      </div>
+    );
+  }
+}
+
+class DatafileSelector extends React.Component {
+  render() {
+    return (
+      <form>
+        <b>Select batch file to start scoring : </b>
+        <label>
+          <select value={this.props.value} onChange={this.props.handleChange}>
+            {this.props.options.map(item => (
+              <option value={item} key={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </label>
+      </form>
+    );
+  }
+}
+
+class SimpleChart extends React.Component {
+  componentDidMount() {
+    var chart = makeLineChart(
+      this.props.xName,
+      this.props.yObjs,
+      this.props.axisLabels,
+      this.props.xAxisDateFormatStr
+    );
+    chart.bind("#" + this.props.chart_id);
+    this.chart = chart;
+    window.setTimeout(chart.update_svg_size, 3000);
+  }
+
+  render() {
+    if (this.chart) {
+      this.chart.render(this.props.data);
+    }
+    return (
+      <div>
+        <div id={this.props.chart_id} className="chart-wrapper" />
       </div>
     );
   }
