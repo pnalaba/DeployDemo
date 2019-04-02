@@ -120,20 +120,32 @@ class MetricsAB extends React.Component {
           onSubmit={this.handleMetricStart}
           style={{ display: "inline-block" }}
         >
-          <input type="submit" value="Start" />
+          <input
+            type="submit"
+            value="Start"
+            className="btn btn-primary btn-sm"
+          />
         </form>
         <form
           onSubmit={this.handleMetricStop}
           style={{ display: "inline-block" }}
         >
-          <input type="submit" value="Stop" />
+          <input
+            type="submit"
+            value="Stop"
+            className="btn btn-primary btn-sm"
+          />
         </form>
         <div style={{ minWidth: "50px", display: "inline-block" }} />
         <form
           onSubmit={this.handleMetricDelete}
           style={{ display: "inline-block" }}
         >
-          <input type="submit" value="Delete old metrics" />
+          <input
+            type="submit"
+            value="Delete old metrics"
+            className="btn btn-primary btn-sm"
+          />
         </form>
 
         <div style={{ minHeight: "30px" }} />

@@ -440,4 +440,9 @@ class SimpleChart extends React.Component {
   }
 }
 
-ReactDOM.render(<Calculator />, document.getElementById("root"));
+ReactDOM.render(
+  <div className="jumbotron">
+    <Calculator />
+  </div>,
+  document.getElementById("root")
+);

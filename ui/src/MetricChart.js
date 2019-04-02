@@ -97,13 +97,21 @@ class MetricChart extends React.Component {
           onSubmit={this.handleGetMetricData}
           style={{ display: "inline-block" }}
         >
-          <input type="submit" value="GetData" />
+          <input
+            type="submit"
+            value="GetData"
+            className="btn btn-primary btn-sm"
+          />
         </form>
         <form
           onSubmit={this.handleStopMetricData}
           style={{ display: "inline-block" }}
         >
-          <input type="submit" value="StopData" />
+          <input
+            type="submit"
+            value="StopData"
+            className="btn btn-primary btn-sm"
+          />
         </form>
         <div
           id={this.props.chart_id}
