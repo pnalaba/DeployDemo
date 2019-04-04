@@ -74,11 +74,11 @@ npm start
 Once server is running, http post requests can be made from a different terminal. Sample commands -
 
 ```
-curl -H "Content-Type: application/json" -X POST -d '{"filepath" :"/user/mapr/projects/SparkStreaming/stream_test/sample500.csv", "hasHeader": "true", "inferSchema": "true", "sep":","}' http://0.0.0.0:9808/countlines
+curl -H "Content-Type: application/json" -X POST -d '{"filepath" :"/mapr/my.cluster.com/user/mapr/ml-Demo/Server/data/diabetes.csv", "hasHeader": "true", "inferSchema": "true", "sep":","}' http://0.0.0.0:9808/countlines
 
-curl -H "Content-Type: application/json" -X POST -d '{"filepath" :"/user/mapr/projects/SparkStreaming/stream_test/sample500.csv", "hasHeader": "true", "inferSchema": "true", "sep":","}' http://0.0.0.0:9808/startMetrics
+curl -H "Content-Type: application/json" -X POST -d '{"filepath" :"/mapr/my.cluster.com/user/mapr/ml-Demo/Server/data/diabetes.csv", "hasHeader": "true", "inferSchema": "true", "sep":","}' http://0.0.0.0:9808/startMetricsChampion/10
 
-curl -H "Content-Type: application/json" -X POST -d '{"filepath" :"/user/mapr/projects/SparkStreaming/stream_test/sample500.csv", "hasHeader": "true", "inferSchema": "true", "sep":","}' http://0.0.0.0:9808/stopMetrics
+curl -H "Content-Type: application/json" -X POST -d '{"filepath" :"/mapr/my.cluster.com/user/mapr/ml-Demo/Server/data/diabetes.csv", "hasHeader": "true", "inferSchema": "true", "sep":","}' http://0.0.0.0:9808/stopMetricsChampion
 ```
 
 To see elasticsearch data -
