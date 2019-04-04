@@ -39,25 +39,25 @@ To build :
 from top-level directory (directory where this readme file is present),
 
 ```
-sbt package assemblyPackageDependecy
+sbt package assemblyPackageDependency
 ```
 
 To run in yarn mode
 
 ```
-spark-submit --master yarn --jars target/scala-2.11/deploydemo-assembly-0.1-deps.ja target/scala-2.11/deploydemo_2.11-0.1.jar -y
+spark-submit --master yarn --jars target/scala-2.11/deploydemo-assembly-0.1-deps.jar target/scala-2.11/deploydemo_2.11-0.1.jar -y
 ```
 
 To run in standalone spark mode
 
 ```
-spark-submit --master local[*] --jars target/scala-2.11/deploydemo-assembly-0.1-deps.j target/scala-2.11/deploydemo_2.11-0.1.jar -s
+spark-submit --master local[*] --jars target/scala-2.11/deploydemo-assembly-0.1-deps.jar target/scala-2.11/deploydemo_2.11-0.1.jar -s
 ```
 
 To specify port number to use for the http server
 
 ```
-spark-submit --master yarn --jars target/scala-2.11/deploydemo-assembly-0.1-deps.ja target/scala-2.11/deploydemo_2.11-0.1.jar -y -p 9808
+spark-submit --master yarn --jars target/scala-2.11/deploydemo-assembly-0.1-deps.jar target/scala-2.11/deploydemo_2.11-0.1.jar -y -p 9808
 ```
 
 ## UI
