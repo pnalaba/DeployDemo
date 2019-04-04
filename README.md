@@ -65,6 +65,7 @@ To start ui, in a different terminal
 
 ```
 cd ui
+npm install 
 npm start
 ```
 
