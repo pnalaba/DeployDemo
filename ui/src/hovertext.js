@@ -16,7 +16,10 @@ var HoverText = {
   },
   canary: {
     title: "Canary Model",
-    description: ["Canary Model"]
+    description: [
+      "Canary Model is a model that can detect shifts in input data distribution. It compares input data to training data distribution.",
+      "If there is a significant change in input data distribution, we can expect model performance to change signficantly. We need to retrain models if input data distribution has changed consistently."
+    ]
   },
 
   ab_testing: {
