@@ -3,8 +3,7 @@ var HoverText = {
     title: "DeployDemo",
     description: [
       "Second stage of a two-part demo. In part one, model(s) were trained.",
-      "In stage two, models that have been trained are put into production and monitored",
-      "The user can select which models to deploy, the method for orchestration and how to"
+      "In stage two, models that have been trained are put into production and monitored. The user can select the method for deployment."
     ]
   },
   champion_challenger: {
