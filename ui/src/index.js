@@ -13,10 +13,10 @@ import { makeLineChart } from "./Multiline.js";
 //images
 import maprlogo from "./images/maprlogo.png";
 import bulb from "./images/bulb.png";
-import championChallenger from "./images/championChallenger.png";
+import championChallenger from "./images/championChallenger_tr.png";
 import abTesting from "./images/abTesting.png";
-import canary from "./images/canary.png";
-import multiArmBandit from "./images/multiArmedBandit.jpeg";
+import canary from "./images/canary_tr.png";
+import multiArmBandit from "./images/multiArmedBandit_tr.png";
 
 const optionsCursorTrueWithMargin = {
   followCursor: true,
@@ -236,8 +236,8 @@ class Calculator extends React.Component {
                         className="rounded mx-auto d-block"
                         alt=""
                         src={canary}
-                        width="30%"
-                        height="30%"
+                        width="60%"
+                        height="60%"
                       />
                       <b>{HoverText["canary"].title}</b>
                       {HoverText["canary"].description.map((name, index) => (
