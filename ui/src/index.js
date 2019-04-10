@@ -33,7 +33,7 @@ class Calculator extends React.Component {
     //.replace(/([^T]+)T([^\.]+).*/g, "$1 $2");
     //
     this.data_dir =
-      "/mapr/my.cluster.com/user/mapr/ml-demo/Server/stream_test/";
+      "/mapr/my.cluster.com/user/mapr/ml-Demo/Server/data/";
 
     this.state = {
       server: "http://" + window.location.hostname + ":" + SERVER_PORT,
