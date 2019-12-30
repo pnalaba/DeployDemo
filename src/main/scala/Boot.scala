@@ -1,21 +1,14 @@
-package deploydemo
+package scalademo
 
 import java.lang.Exception
 
+import scala.concurrent.Future
+import scala.util.control.{Exception, NonFatal}
+import scala.io.Source
+import scala.util.parsing.json._
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import org.apache.log4j.{Level, Logger}
-import scala.concurrent.Future
-import scala.io.Source
-import scala.util.control.{Exception, NonFatal}
-import scala.util.parsing.json._
-
-
-
-
-
-case class ArgsConfig(port: Int = -1, spark: Boolean = true, yarn: Boolean = false,
-   local: Boolean = false)
-
+import scalademo.ArgsConfig
 
 object Boot {
 
@@ -24,8 +17,8 @@ object Boot {
     Logger.getLogger("org").setLevel(level)
     Logger.getLogger("akka").setLevel(level)
 
-    val parser = new scopt.OptionParser[ArgsConfig]("deploydemo") {
-      head("deploydemo", "1.0")
+    val parser = new scopt.OptionParser[ArgsConfig]("scalademo") {
+      head("scalademo", "1.0")
 
       opt[Int]('p', "port").action( (x,c) =>
         c.copy(port = x) ).text("port")
@@ -45,7 +38,7 @@ object Boot {
     }
 
     parser.parse(args, ArgsConfig()) match {
-      case Some(config) => val service = DeployDemo(config)
+      case Some(config) => val service = ScalaDemo(config)
       case None => println("error parsing input parameters")
     }
 
