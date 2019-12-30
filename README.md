@@ -1,82 +1,65 @@
-# DeployDemo
+# demo for scala webserver with spark
 
-# Configuration
-
-Settings are specified in the file src/main/resource/reference.conf.
-
-- port is the default port for http server - can be overridden by specifying -p <PORT> while launching
-- data_dir is the root directory for model and data files that are read in spark. This directory will get 
-  populated by Part1 of the demo - assuming data_dir here matches with data_dir in that demo
-
-
-ML model Pipelines currently in the model directory -
-
-### rf Random forest
-
-### mlp MultiLayer Percepteron
-
-### logistic regression
-
-### kmeans
-
-There are http paths defined to specify a file to load as dataframe, to periodically
-sample smaller dataframes from the original dataframe, run the sample through all the
-ML models and get metrics. For now, metrics are printed to screen.
-
-There is a http path to stop the metrics from being calculated.
-
-# Sample command line -
-
-## Server
-
-To build :  
-from top-level directory (directory where this readme file is present),
+To build
 
 ```
-sbt package assemblyPackageDependency
+sbt compile assembly
 ```
 
-To run in yarn mode
+To run the application on yarn cluster - example running on port 3902
 
 ```
-spark-submit --master yarn --jars target/scala-2.11/deploydemo-assembly-0.1-deps.jar target/scala-2.11/deploydemo_2.11-0.1.jar -y
+spark-submit --master yarn --jars target/scala-2.11/scalademo-core-assembly-0.1-deps.jar target/scala-2.11/scalademo-core_2.11-0.1.jar -y -p 3902
 ```
-
-To run in standalone spark mode
-
-```
-spark-submit --master local[*] --jars target/scala-2.11/deploydemo-assembly-0.1-deps.jar target/scala-2.11/deploydemo_2.11-0.1.jar -s
-```
-
-To specify port number to use for the http server
+To run the application on yarn cluster - example running on default port specified in src/main/resources/reference.conf file
 
 ```
-spark-submit --master yarn --jars target/scala-2.11/deploydemo-assembly-0.1-deps.jar target/scala-2.11/deploydemo_2.11-0.1.jar -y -p 9808
+spark-submit --master local[*] --jars target/scala-2.11/scalademo-core-assembly-0.1-deps.jar target/scala-2.11/scalademo-core_2.11-0.1.jar -s
 ```
 
-## UI
-To start ui, in a different terminal
+
+
+To test, open the following url in the browser
 
 ```
-cd ui
-npm install 
-npm start
+http://hostname:PORT/test/spark/10000
 ```
 
-# Sanity Check
+it should show something like - "ret: Success(Pi is roughly + 3.1296)"
 
-Once server is running, http post requests can be made from a different terminal. Sample commands -
+Examples to test post request handler -
 
-```
-curl -H "Content-Type: application/json" -X POST -d '{"filepath" :"/mapr/my.cluster.com/user/mapr/ml-Demo/Server/data/diabetes.csv", "hasHeader": "true", "inferSchema": "true", "sep":","}' http://0.0.0.0:9808/countlines
-
-curl -H "Content-Type: application/json" -X POST -d '{"filepath" :"/mapr/my.cluster.com/user/mapr/ml-Demo/Server/data/diabetes.csv", "hasHeader": "true", "inferSchema": "true", "sep":","}' http://0.0.0.0:9808/startMetricsChampion/10
-
-curl -H "Content-Type: application/json" -X POST -d '{"filepath" :"/mapr/my.cluster.com/user/mapr/ml-Demo/Server/data/diabetes.csv", "hasHeader": "true", "inferSchema": "true", "sep":","}' http://0.0.0.0:9808/stopMetricsChampion
-```
-
-To see elasticsearch data -
+To list files in a directory
 
 ```
-curl -H "Content-Type: application/json" -X GET 'localhost:9200/deploydemo/_search?size=1000&pretty=true'
+curl -H "Content-Type: application/json" -X POST -d '{"filepath" :"/home/mapr"}' http://hostname:POST/dir
+```
+
+To count lines in a csv file
+
+```
+curl -H "Content-Type: application/json" -X POST -d '{"filepath" :"/user/mapr/projects/recommendationEngine/test.data", "hasHeader": "false", "sep": "\t", "inferSchema": "true"}' http://hostname:PORT/countlines
+
+=> returns
+ret: linecount = 100000
+```
+
+To show schema of a csv file
+
+```
+curl -H "Content-Type: application/json" -X POST -d '{"filepath" : "/user/mapr/ml-demo/Server/data/diabetes.csv", "hasHeader": "true", "sep": ",", "inferSchema" : "true"}' http://hostname:PORT/getSchema
+
+=> returns
+StructType(StructField(Pregnancies,IntegerType,true), StructField(Glucose,IntegerType,true), StructField(BloodPressure,IntegerType,true), StructField(SkinThickness,IntegerType,true), StructField(Insulin,IntegerType,true), StructField(BMI,DoubleType,true), StructField(DiabetesPedigreeFunction,DoubleType,true), StructField(Age,IntegerType,true), StructField(Outcome,IntegerType,true))
+```
+
+To show first 20 lines of csv file
+
+```
+curl -H "Content-Type: application/json" -X POST -d '{"filepath" : "/user/mapr/ml-demo/Server/data/diabetes.csv", "hasHeader": "true", "sep": ",", "inferSchema" : "true"}' http://hostname:PORT/dfshow
+
+=> returns
+WrappedArray(Pregnancies, Glucose, BloodPressure, SkinThickness, Insulin, BMI, DiabetesPedigreeFunction, Age, Outcome)
+WrappedArray([6,148,72,35,0,33.6,0.627,50,1], [1,85,66,29,0,26.6,0.351,31,0], [8,183,64,0,0,23.3,0.672,32,1], [1,89,66,23,94,28.1,0.167,21,0], [0,137,40,35,168,43.1,2.288,33,1], [5,116,74,0,0,25.6,0.201,30,0], [3,78,50,32,88,31.0,0.248,26,1], [10,115,0,0,0,35.3,0.134,29,0], [2,197,70,45,543,30.5,0.158,53,1], [8,125,96,0,0,0.0,0.232,54,1])
+
 ```
